@@ -16,7 +16,7 @@
    ```
 4. **Start the API**: `python api_server.py`
 5. **Run autologin**: `python autologin.py`
-6. **Or use the web panel**: `python manager_simple.py` → http://localhost:8000
+6. **Or use the web panel**: `python manager.py` → http://localhost:8000
 
 ## Files
 - `autologin.py` — main script.
@@ -149,12 +149,12 @@ Abre tu navegador en: `http://localhost:8000`
 ### Estructura de Archivos Actualizada
 ```
 /
-├── manager.py          (NUEVO - Panel de control web)
+├── manager.py          (Panel de control web - Estable y funcional)
 ├── api_server.py       (Servidor de captchas)
 ├── autologin.py        (Procesador de cuentas)
 ├── requirements.txt    (Actualizado con FastAPI, Jinja2)
 └── templates/
-    └── index.html      (NUEVO - Interfaz web)
+    └── index.html      (Interfaz web moderna)
 ```
 
 ## Security Notes
