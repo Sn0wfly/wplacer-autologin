@@ -558,7 +558,7 @@
                 <div class="config-section">
                     <div class="config-title">
                         🔒 Red de Anonimato
-                        <span class="help-icon" title="Red Tor para navegación anónima. Proporciona proxies SOCKS en puerto 9050 y control en puerto 9051. Permite ocultar tu IP real y acceder a sitios web de forma anónima.">
+                        <span class="help-icon" title="Tor network for anonymous browsing. Provides SOCKS proxies on port 9050 and control on port 9051. Allows you to hide your real IP and access websites anonymously.">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <circle cx="8" cy="8" r="7" fill="#00ff41" stroke="#00cc33" stroke-width="2"/>
                                 <text x="8" y="11" text-anchor="middle" fill="#000" font-family="Arial, sans-serif" font-size="10" font-weight="bold">?</text>
@@ -735,13 +735,13 @@
 
             <div id="logs-api-server" class="log-content">
                 <div class="logs-container" data-type="api-server">
-                    <div class="log-entry log-api-server">[API_SERVER] Esperando logs...</div>
+                    <div class="log-entry log-api-server">[API_SERVER] Waiting for logs...</div>
                 </div>
             </div>
 
             <div id="logs-autologin" class="log-content">
                 <div class="logs-container" data-type="autologin">
-                    <div class="log-entry log-autologin">[AUTOLOGIN] Esperando logs...</div>
+                    <div class="log-entry log-autologin">[AUTOLOGIN] Waiting for logs...</div>
                 </div>
             </div>
 
@@ -1169,10 +1169,10 @@
                 websocket = new WebSocket(wsUrl);
                 
                 websocket.onopen = function(event) {
-                    console.log('WebSocket conectado');
+                    console.log('WebSocket connected');
                     elements.wsIndicator.className = 'ws-indicator ws-connected';
-                    elements.wsStatus.textContent = 'Conectado';
-                    addLogEntry('✅ Conexión WebSocket establecida', 'manager');
+                    elements.wsStatus.textContent = 'Connected';
+                    addLogEntry('✅ WebSocket connection established', 'manager');
                     
                     if (reconnectInterval) {
                         clearInterval(reconnectInterval);
@@ -1200,10 +1200,10 @@
                 };
                 
                 websocket.onclose = function(event) {
-                    console.log('WebSocket desconectado:', event.code, event.reason);
+                    console.log('WebSocket disconnected:', event.code, event.reason);
                     elements.wsIndicator.className = 'ws-indicator ws-disconnected';
-                    elements.wsStatus.textContent = 'Desconectado';
-                    addLogEntry('⚠️ Conexión WebSocket perdida - Reintentando...', 'manager');
+                    elements.wsStatus.textContent = 'Disconnected';
+                    addLogEntry('⚠️ WebSocket connection lost - Retrying...', 'manager');
                     
                     if (!reconnectInterval) {
                         reconnectInterval = setInterval(connectWebSocket, 5000);
@@ -1342,24 +1342,24 @@
             });
         }
 
-        // Inicialización
+        // Initialization
         document.addEventListener('DOMContentLoaded', function() {
-            addLogEntry('🚀 Panel de control avanzado cargado y funcional', 'manager');
+            addLogEntry('🚀 Advanced control panel loaded and functional', 'manager');
             
-            // Conectar WebSocket
+            // Connect WebSocket
             connectWebSocket();
             
-            // Actualizar estado inicial
+            // Update initial status
             updateStatus();
             
-            // Configurar actualización periódica
+            // Configure periodic updates
             statusUpdateInterval = setInterval(updateStatus, 2000);
             
-            // Actualizar timestamp cada segundo
+            // Update timestamp every second
             setInterval(updateTimestamp, 1000);
         });
 
-        // Limpiar intervalos al cerrar
+        // Clean intervals on close
         window.addEventListener('beforeunload', function() {
             if (websocket) websocket.close();
             if (reconnectInterval) clearInterval(reconnectInterval);
