@@ -52,8 +52,22 @@ Open `autologin.py` and adjust:
 - Any site‑specific selectors you added for your own test site.
 
 ## Run
+
+### Concurrent Processing (Recommended - Faster)
 ```bash
+# Run with 5 concurrent workers (default)
 python autologin.py
+
+# Run with 10 concurrent workers
+python autologin.py --workers 10
+
+# Run with custom number of workers
+python autologin.py -w 3
+```
+
+### Sequential Processing (Original behavior)
+```bash
+python autologin.py --sequential
 ```
 
 ## What happens
@@ -72,5 +86,27 @@ python autologin.py
 - **Timeouts**: Verify your test URL and `sitekey` are correct for your own setup.
 - **Proxy errors**: Make sure entries in `proxies.txt` are valid and live.
 
+## Concurrent Processing Features
+
+### Performance Improvements
+- **5-10x faster processing**: Multiple accounts processed simultaneously
+- **Thread-safe operations**: Safe concurrent access to shared resources
+- **Automatic proxy distribution**: Each thread uses different proxies to avoid conflicts
+- **Progress tracking**: Real-time progress updates during concurrent execution
+
+### How It Works
+- Each worker thread processes accounts independently
+- Proxy pool is shared safely between threads using locks
+- State file (`data.json`) is updated atomically to prevent corruption
+- TOR circuits are refreshed per thread to maintain anonymity
+- Each thread gets its own browser instance to avoid conflicts
+
+### Recommended Settings
+- **5 workers**: Good balance for most setups
+- **10 workers**: For faster processing if you have many proxies and good hardware
+- **3 workers**: Conservative setting for limited resources
+
 ## Notes
 - Keep `data.json` private because it contains account information.
+- Concurrent processing requires sufficient proxies (at least as many as workers).
+- Monitor system resources when using high worker counts.

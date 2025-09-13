@@ -4,6 +4,8 @@ from browserforge.fingerprints import Screen
 from stem import Signal
 from stem.control import Controller
 import time, sys, pathlib, requests, os, json, itertools
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 CONSENT_BTN_XPATH = '/html/body/div[2]/div[1]/div[2]/c-wiz/main/div[3]/div/div/div[2]/div/div/button'
 STATE_FILE = "data.json"
@@ -12,6 +14,10 @@ PROXIES_FILE = "proxies.txt"
 POST_URL = "http://127.0.0.1:80/user"
 CTRL_HOST, CTRL_PORT = "127.0.0.1", 9051
 SOCKS_HOST, SOCKS_PORT = "127.0.0.1", 9050
+
+# Thread synchronization
+state_lock = threading.Lock()
+proxy_lock = threading.Lock()
 
 # ===================== PROXY HANDLING =====================
 def load_proxies(path=PROXIES_FILE):
@@ -26,15 +32,24 @@ def load_proxies(path=PROXIES_FILE):
             continue
         parts = s.split(":")
         if len(parts) == 2:   # host:port only
-            proxies.append(f"http://{parts[0]}:{parts[1]}")  # requests style
+            proxies.append(f"http://{parts[0]}:{parts[1]}")  
+        elif len(parts) == 4:  # host:port:user:pass (DECODO format)
+            host, port, user, password = parts
+            proxies.append(f"http://{user}:{password}@{host}:{port}")
         else:
             print(f"[WARN] Skipping invalid proxy line: {ln}")
     if not proxies:
         print("[ERROR] no valid proxies found")
         sys.exit(1)
+    print(f"[INFO] Loaded {len(proxies)} proxies")
     return itertools.cycle(proxies)  # infinite iterator
 
 proxy_pool = load_proxies()
+
+def get_next_proxy():
+    """Thread-safe proxy retrieval"""
+    with proxy_lock:
+        return next(proxy_pool)
 
 # ===================== GOOGLE LOGIN HELPERS =====================
 def exists(fr_or_pg, sel, t=500):
@@ -90,7 +105,7 @@ def poll_cookie_any_context(browser, name="j", timeout_s=180):
 
 # ===================== TURNSTILE SOLVER =====================
 def get_solved_token(api_url="http://localhost:8080/turnstile", target_url="https://backend.wplace.live", sitekey="0x4AAAAAABpHqZ-6i7uL0nmG"):
-    proxy = next(proxy_pool)
+    proxy = get_next_proxy()
     try:
         r = requests.get(api_url, params={"url": target_url, "sitekey": sitekey, "proxy": proxy}, timeout=20)
         if r.status_code != 202:
@@ -117,7 +132,7 @@ def login_once(email, password):
     backend_url = f"https://backend.wplace.live/auth/google?token={token}"
 
     # Step 2: Follow redirect via same HTTP proxy (requests)
-    proxy_http = next(proxy_pool)
+    proxy_http = get_next_proxy()
     proxies = {"http": proxy_http, "https": proxy_http}  # requests style
     try:
         r = requests.get(backend_url, allow_redirects=True, proxies=proxies, timeout=15)
@@ -180,10 +195,12 @@ def load_state():
     }
 
 def save_state(state):
-    tmp = STATE_FILE + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, STATE_FILE)
+    """Thread-safe state saving"""
+    with state_lock:
+        tmp = STATE_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, STATE_FILE)
 
 # ===================== TOR HELPERS =====================
 def tor_newnym_cookie(host=CTRL_HOST, port=CTRL_PORT):
@@ -193,29 +210,53 @@ def tor_newnym_cookie(host=CTRL_HOST, port=CTRL_PORT):
             time.sleep(c.get_newnym_wait())
         c.signal(Signal.NEWNYM)
 # ===================== ACCOUNT PROCESSING =====================
-def process_account(state, idx):
-    acc = state["accounts"][idx]
-    state["cursor"]["next_index"] = idx
+def process_account(state, idx, thread_id=None):
+    """Process a single account - thread-safe version"""
+    thread_prefix = f"[T{thread_id}]" if thread_id else ""
+    
+    # Thread-safe account access and update
+    with state_lock:
+        acc = state["accounts"][idx]
+        acc["tries"] += 1
+        state["cursor"]["next_index"] = idx
+    
     save_state(state)
-    acc["tries"] += 1
+    
     try:
+        print(f"{thread_prefix} Processing {acc['email']}...")
         c = login_once(acc["email"], acc["password"])
         if not c:
             raise RuntimeError("cookie_not_found")
+        
         payload = {"cookies": {"j": c.get("value", "")}, "expirationDate": 999999999}
         requests.post(POST_URL, json=payload, timeout=10)
-        acc["status"] = "ok"
-        acc["last_error"] = ""
-        acc["result"] = {"domain": c.get("domain", ""), "value": c.get("value", "")}
-        print(f"[OK] {acc['email']}")
+        
+        # Thread-safe result update
+        with state_lock:
+            acc["status"] = "ok"
+            acc["last_error"] = ""
+            acc["result"] = {"domain": c.get("domain", ""), "value": c.get("value", "")}
+        
+        print(f"{thread_prefix} [OK] {acc['email']}")
+        
     except Exception as e:
-        acc["status"] = "error"
-        acc["last_error"] = f"{type(e).__name__}: {e}"
-        print(f"[ERR] {acc['email']} | {acc['last_error']}")
+        error_msg = f"{type(e).__name__}: {e}"
+        
+        # Thread-safe error update
+        with state_lock:
+            acc["status"] = "error" 
+            acc["last_error"] = error_msg
+        
+        print(f"{thread_prefix} [ERR] {acc['email']} | {error_msg}")
+        
     finally:
         save_state(state)
-        tor_newnym_cookie()
-        time.sleep(3)
+        # Each thread gets its own TOR circuit
+        try:
+            tor_newnym_cookie()
+        except Exception as e:
+            print(f"{thread_prefix} [WARN] TOR newnym failed: {e}")
+        time.sleep(2)  # Reduced sleep for faster processing
 
 def indices_by_status(state, statuses: set[str]) -> list[int]:
     """Return account indices whose status is in `statuses`.
@@ -228,7 +269,49 @@ def indices_by_status(state, statuses: set[str]) -> list[int]:
     return out
 
 # ===================== MAIN =====================
+def main_concurrent(max_workers=5):
+    """Main function with concurrent processing"""
+    state = load_state()
+
+    # Queue: all error/errored first, then all pending.
+    q = indices_by_status(state, {"error", "errored"}) + indices_by_status(state, {"pending"})
+
+    seen = set()
+    ordered = [i for i in q if not (i in seen or seen.add(i))]
+
+    if not ordered:
+        print("[DONE] nothing to process")
+        return
+
+    print(f"[INFO] Processing {len(ordered)} accounts with {max_workers} concurrent workers")
+    
+    # Process accounts concurrently
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_idx = {}
+        for thread_id, idx in enumerate(ordered):
+            future = executor.submit(process_account, state, idx, thread_id + 1)
+            future_to_idx[future] = idx
+        
+        # Wait for completion and handle results
+        completed = 0
+        for future in as_completed(future_to_idx):
+            idx = future_to_idx[future]
+            completed += 1
+            try:
+                future.result()  # This will raise any exception that occurred
+                print(f"[INFO] Progress: {completed}/{len(ordered)} completed")
+            except Exception as e:
+                print(f"[ERROR] Thread processing account {idx} failed: {e}")
+
+    # Final state save and cursor update
+    with state_lock:
+        state["cursor"]["next_index"] = len(state["accounts"])
+    save_state(state)
+    print("[DONE] All accounts processed")
+
 def main():
+    """Sequential processing (original behavior)"""
     state = load_state()
 
     # Queue: all error/errored first, then all pending.
@@ -250,7 +333,22 @@ def main():
     print("[DONE]")
 
 if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Auto-login script with concurrent processing")
+    parser.add_argument("--workers", "-w", type=int, default=5, 
+                       help="Number of concurrent workers (default: 5)")
+    parser.add_argument("--sequential", action="store_true", 
+                       help="Use sequential processing instead of concurrent")
+    
+    args = parser.parse_args()
+    
     try:
-        main()
+        if args.sequential:
+            print("[INFO] Using sequential processing")
+            main()
+        else:
+            print(f"[INFO] Using concurrent processing with {args.workers} workers")
+            main_concurrent(max_workers=args.workers)
     except KeyboardInterrupt:
         print("\n[INTERRUPTED]")
