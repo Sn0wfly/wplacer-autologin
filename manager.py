@@ -9,6 +9,7 @@ import json
 import subprocess
 import threading
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -19,8 +20,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.requests import Request
 
-# Configuración global
-app = FastAPI(title="Autologin Manager", description="Panel de Control para Autologin")
+# Configuración de templates
 templates = Jinja2Templates(directory="templates")
 
 # Diccionario global para almacenar los procesos y su estado
@@ -140,6 +140,44 @@ def get_process_status(process_name: str) -> str:
             # Proceso terminado, limpiar referencia
             processes[process_name] = None
             return "stopped"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Gestor del ciclo de vida de la aplicación"""
+    # Startup
+    print("[MANAGER] Iniciando servidor de gestión...")
+    print("[MANAGER] Panel de control disponible en: http://localhost:8000")
+    
+    # Verificar que los scripts existen
+    required_files = ["api_server.py", "autologin.py"]
+    for file in required_files:
+        if not Path(file).exists():
+            print(f"[MANAGER] ADVERTENCIA: {file} no encontrado")
+    
+    yield
+    
+    # Shutdown
+    print("[MANAGER] Cerrando servidor...")
+    
+    # Detener todos los procesos activos
+    with process_lock:
+        for process_name, process in processes.items():
+            if process and process.poll() is None:
+                print(f"[MANAGER] Deteniendo {process_name}...")
+                try:
+                    process.terminate()
+                    process.wait(timeout=5)
+                except:
+                    process.kill()
+
+
+# Configuración global con lifespan
+app = FastAPI(
+    title="Autologin Manager", 
+    description="Panel de Control para Autologin",
+    lifespan=lifespan
+)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -301,36 +339,6 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         print(f"[MANAGER] Error en WebSocket: {e}")
         websocket_manager.disconnect(websocket)
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Configuración inicial del servidor"""
-    print("[MANAGER] Iniciando servidor de gestión...")
-    print("[MANAGER] Panel de control disponible en: http://localhost:8000")
-    
-    # Verificar que los scripts existen
-    required_files = ["api_server.py", "autologin.py"]
-    for file in required_files:
-        if not Path(file).exists():
-            print(f"[MANAGER] ADVERTENCIA: {file} no encontrado")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Limpieza al cerrar el servidor"""
-    print("[MANAGER] Cerrando servidor...")
-    
-    # Detener todos los procesos activos
-    with process_lock:
-        for process_name, process in processes.items():
-            if process and process.poll() is None:
-                print(f"[MANAGER] Deteniendo {process_name}...")
-                try:
-                    process.terminate()
-                    process.wait(timeout=5)
-                except:
-                    process.kill()
 
 
 if __name__ == "__main__":
