@@ -694,7 +694,114 @@
             logsAll: document.querySelector('[data-type="all"]')
         };
 
-        // Funciones de utilidad
+        // FUNCIONES GLOBALES PARA HTML ONCLICK
+        
+        window.viewFile = async function(filename) {
+            addLogEntry(`👀 Viendo archivo: ${filename}`, 'manager');
+            
+            try {
+                const response = await fetch(`/files/${filename}/content`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showFileContent(data);
+                } else {
+                    addLogEntry(`❌ Error viendo ${filename}: ${data.detail}`, 'manager');
+                }
+            } catch (error) {
+                addLogEntry(`❌ Error cargando ${filename}: ${error.message}`, 'manager');
+            }
+        }
+        
+        window.editFile = function(filename) {
+            addLogEntry(`✏️ Nota: Editar archivo ${filename} - Usa tu editor preferido`, 'manager');
+            addLogEntry(`💡 El archivo está en la raíz del proyecto: ${filename}`, 'manager');
+        }
+        
+        window.clearProgress = async function() {
+            if (!confirm('¿Estás seguro de que quieres reiniciar el progreso? Esto creará un backup del archivo actual.')) {
+                return;
+            }
+            
+            addLogEntry('🔄 Reiniciando progreso...', 'manager');
+            
+            try {
+                const response = await fetch('/files/data.json/clear', { method: 'POST' });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addLogEntry(`✅ ${data.message}`, 'manager');
+                    updateStatus(); // Actualizar información de archivos
+                } else {
+                    addLogEntry(`❌ Error: ${data.detail}`, 'manager');
+                }
+            } catch (error) {
+                addLogEntry(`❌ Error reiniciando progreso: ${error.message}`, 'manager');
+            }
+        }
+        
+        window.testTorConnection = async function() {
+            addLogEntry('🔍 Probando conexión TOR...', 'manager');
+            
+            // Buscar el botón correctamente
+            const testButton = document.querySelector('button[onclick="testTorConnection()"]');
+            if (testButton) {
+                const originalText = testButton.textContent;
+                testButton.textContent = '🔄 Probando...';
+                testButton.disabled = true;
+                
+                try {
+                    const response = await fetch('/test/tor', { method: 'POST' });
+                    const data = await response.json();
+                    
+                    console.log('TOR test response:', data); // Debug
+                    
+                    if (data.status === 'success' || data.tor_working) {
+                        addLogEntry(`✅ ${data.message}`, 'manager');
+                        addLogEntry(`🌐 IP Normal: ${data.normal_ip} | IP TOR: ${data.tor_ip}`, 'manager');
+                    } else if (data.status === 'warning') {
+                        addLogEntry(`⚠️ ${data.message}`, 'manager');
+                        if (data.normal_ip) {
+                            addLogEntry(`🌐 IP Normal: ${data.normal_ip} | IP TOR: ${data.tor_ip}`, 'manager');
+                        }
+                    } else {
+                        addLogEntry(`❌ ${data.message}`, 'manager');
+                    }
+                } catch (error) {
+                    addLogEntry(`❌ Error probando TOR: ${error.message}`, 'manager');
+                } finally {
+                    testButton.textContent = originalText;
+                    testButton.disabled = false;
+                }
+            }
+        }
+        
+        window.toggleCollapse = function(elementId) {
+            const element = document.getElementById(elementId);
+            const trigger = event.target;
+            
+            if (element && trigger) {
+                element.classList.toggle('collapsed');
+                trigger.classList.toggle('collapsed');
+            }
+        }
+        
+        window.switchTab = function(tabName) {
+            // Actualizar pestañas
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Mostrar contenido correspondiente
+            document.querySelectorAll('.log-content').forEach(content => content.classList.remove('active'));
+            const targetTab = document.getElementById(`logs-${tabName}`);
+            if (targetTab) {
+                targetTab.classList.add('active');
+            }
+            
+            currentTab = tabName;
+        }
+
+        // FUNCIONES UTILES
         function updateTimestamp() {
             const now = new Date();
             const timeStr = now.toLocaleTimeString('es-ES');
@@ -708,30 +815,85 @@
             logEntry.textContent = `[${timestamp}] ${message}`;
             
             // Agregar a contenedor específico
-            const specificContainer = elements[`logs${type.charAt(0).toUpperCase() + type.slice(1).replace('_', '')}`) || elements.logsManager;
-            specificContainer.appendChild(logEntry);
+            let specificContainer = elements.logsManager;
+            if (type === 'api_server') {
+                specificContainer = elements.logsApiServer;
+            } else if (type === 'autologin') {
+                specificContainer = elements.logsAutologin;
+            }
+            
+            if (specificContainer) {
+                specificContainer.appendChild(logEntry.cloneNode(true));
+                specificContainer.scrollTop = specificContainer.scrollHeight;
+            }
             
             // Agregar a contenedor "todos"
-            const allEntry = logEntry.cloneNode(true);
-            elements.logsAll.appendChild(allEntry);
-            
-            // Auto-scroll
-            specificContainer.scrollTop = specificContainer.scrollHeight;
-            elements.logsAll.scrollTop = elements.logsAll.scrollHeight;
+            if (elements.logsAll) {
+                elements.logsAll.appendChild(logEntry.cloneNode(true));
+                elements.logsAll.scrollTop = elements.logsAll.scrollHeight;
+            }
             
             // Limitar logs (mantener últimos 300)
             [specificContainer, elements.logsAll].forEach(container => {
-                if (container.children.length > 300) {
+                if (container && container.children.length > 300) {
                     container.removeChild(container.firstChild);
                 }
             });
         }
 
+        function showFileContent(data) {
+            // Crear modal para mostrar contenido
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); z-index: 1000;
+                display: flex; align-items: center; justify-content: center;
+                cursor: pointer;
+            `;
+            
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: #2d2d2d; border: 1px solid #444; border-radius: 10px;
+                padding: 20px; max-width: 80%; max-height: 80%;
+                overflow: auto; color: white; font-family: 'Courier New', monospace;
+                cursor: auto;
+            `;
+            
+            content.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="color: #00ff41;">${data.filename}</h3>
+                    <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                            style="background: #ff4757; color: white; border: none; border-radius: 5px; padding: 8px 12px; cursor: pointer;">
+                        ✖ Cerrar
+                    </button>
+                </div>
+                <pre style="white-space: pre-wrap; background: #1a1a1a; padding: 15px; border-radius: 5px; margin: 0; max-height: 400px; overflow: auto;">${data.content}</pre>
+                ${data.lines_shown ? `<p style="color: #ccc; font-size: 12px; margin-top: 10px;">Mostrando ${data.lines_shown} líneas</p>` : ''}
+            `;
+            
+            // Cerrar modal al hacer clic fuera
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            };
+            
+            // Prevenir cierre al hacer clic en el contenido
+            content.onclick = (e) => {
+                e.stopPropagation();
+            };
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+        }
+
         function updateProcessStatus(processName, status) {
             const statusElement = processName === 'api_server' ? elements.apiStatus : elements.autologinStatus;
             
-            statusElement.classList.remove('status-running', 'status-stopped');
-            statusElement.classList.add(status === 'running' ? 'status-running' : 'status-stopped');
+            if (statusElement) {
+                statusElement.classList.remove('status-running', 'status-stopped');
+                statusElement.classList.add(status === 'running' ? 'status-running' : 'status-stopped');
+            }
         }
 
         function setButtonsLoading(processName, isLoading) {
@@ -740,29 +902,11 @@
                 : [elements.startAutologin, elements.stopAutologin];
             
             buttons.forEach(btn => {
-                btn.disabled = isLoading;
-                btn.classList.toggle('loading', isLoading);
+                if (btn) {
+                    btn.disabled = isLoading;
+                    btn.classList.toggle('loading', isLoading);
+                }
             });
-        }
-
-        function switchTab(tabName) {
-            // Actualizar pestañas
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            // Mostrar contenido correspondiente
-            document.querySelectorAll('.log-content').forEach(content => content.classList.remove('active'));
-            document.getElementById(`logs-${tabName}`).classList.add('active');
-            
-            currentTab = tabName;
-        }
-
-        function toggleCollapse(elementId) {
-            const element = document.getElementById(elementId);
-            const trigger = event.target;
-            
-            element.classList.toggle('collapsed');
-            trigger.classList.toggle('collapsed');
         }
 
         // Funciones de API
@@ -774,14 +918,12 @@
                 const params = new URLSearchParams();
                 
                 if (processName === 'api_server') {
-                    // Configuraciones API Server (preparado para futuro)
                     params.append('threads', elements.apiThreads.value);
                     params.append('pages', elements.apiPages.value);
                     params.append('port', elements.apiPort.value);
                     params.append('headless', elements.apiHeadless.checked);
                     params.append('proxy_support', elements.apiProxySupport.checked);
                 } else if (processName === 'autologin') {
-                    // Configuraciones Autologin
                     params.append('sequential', elements.sequentialMode.checked);
                     if (!elements.sequentialMode.checked) {
                         params.append('workers', elements.workersCount.value);
@@ -875,113 +1017,6 @@
             }
         }
 
-        // Funciones de gestión de archivos
-        async function viewFile(filename) {
-            addLogEntry(`👀 Viendo archivo: ${filename}`, 'manager');
-            
-            try {
-                const response = await fetch(`/files/${filename}/content`);
-                const data = await response.json();
-                
-                if (response.ok) {
-                    // Crear modal o ventana para mostrar contenido
-                    showFileContent(data);
-                } else {
-                    addLogEntry(`❌ Error viendo ${filename}: ${data.detail}`, 'manager');
-                }
-            } catch (error) {
-                addLogEntry(`❌ Error cargando ${filename}: ${error.message}`, 'manager');
-            }
-        }
-
-        function showFileContent(data) {
-            // Crear modal simple para mostrar contenido
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.8); z-index: 1000;
-                display: flex; align-items: center; justify-content: center;
-            `;
-            
-            const content = document.createElement('div');
-            content.style.cssText = `
-                background: #2d2d2d; border: 1px solid #444; border-radius: 10px;
-                padding: 20px; max-width: 80%; max-height: 80%;
-                overflow: auto; color: white; font-family: 'Courier New', monospace;
-            `;
-            
-            content.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="color: #00ff41;">${data.filename}</h3>
-                    <button onclick="this.parentElement.parentElement.parentElement.remove()" 
-                            style="background: #ff4757; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer;">
-                        Cerrar
-                    </button>
-                </div>
-                <pre style="white-space: pre-wrap; background: #1a1a1a; padding: 15px; border-radius: 5px; margin: 0;">${data.content}</pre>
-                ${data.lines_shown ? `<p style="color: #ccc; font-size: 12px; margin-top: 10px;">Mostrando ${data.lines_shown} líneas</p>` : ''}
-            `;
-            
-            modal.appendChild(content);
-            document.body.appendChild(modal);
-        }
-
-        function editFile(filename) {
-            addLogEntry(`✏️ Nota: Editar archivo ${filename} - Usa tu editor preferido`, 'manager');
-            addLogEntry(`💡 El archivo está en la raíz del proyecto: ${filename}`, 'manager');
-        }
-
-        async function clearProgress() {
-            if (!confirm('¿Estás seguro de que quieres reiniciar el progreso? Esto creará un backup del archivo actual.')) {
-                return;
-            }
-            
-            addLogEntry('🔄 Reiniciando progreso...', 'manager');
-            
-            try {
-                const response = await fetch('/files/data.json/clear', { method: 'POST' });
-                const data = await response.json();
-                
-                if (response.ok) {
-                    addLogEntry(`✅ ${data.message}`, 'manager');
-                } else {
-                    addLogEntry(`❌ Error: ${data.detail}`, 'manager');
-                }
-            } catch (error) {
-                addLogEntry(`❌ Error reiniciando progreso: ${error.message}`, 'manager');
-            }
-        }
-
-        async function testTorConnection() {
-            addLogEntry('🔍 Probando conexión TOR...', 'manager');
-            
-            // Mostrar indicador de carga
-            const testButton = event.target;
-            const originalText = testButton.textContent;
-            testButton.textContent = '🔄 Probando...';
-            testButton.disabled = true;
-            
-            try {
-                const response = await fetch('/test/tor', { method: 'POST' });
-                const data = await response.json();
-                
-                if (data.tor_working) {
-                    addLogEntry(`✅ ${data.message}`, 'manager');
-                    addLogEntry(`🌐 IP Normal: ${data.normal_ip} | IP TOR: ${data.tor_ip}`, 'manager');
-                } else {
-                    addLogEntry(`⚠️ ${data.message}`, 'manager');
-                    if (data.normal_ip) {
-                        addLogEntry(`🌐 IP Normal: ${data.normal_ip} | IP TOR: ${data.tor_ip}`, 'manager');
-                    }
-                }
-            } catch (error) {
-                addLogEntry(`❌ Error probando TOR: ${error.message}`, 'manager');
-            } finally {
-                testButton.textContent = originalText;
-                testButton.disabled = false;
-            }
-        }
-
         // Funciones WebSocket
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1048,33 +1083,47 @@
         }
 
         // Event Listeners
-        elements.startApi.addEventListener('click', () => startProcess('api_server'));
-        elements.stopApi.addEventListener('click', () => stopProcess('api_server'));
-        
-        elements.startAutologin.addEventListener('click', () => startProcess('autologin'));
-        elements.stopAutologin.addEventListener('click', () => stopProcess('autologin'));
-        
-        elements.clearAllLogs.addEventListener('click', () => {
-            document.querySelectorAll('.logs-container').forEach(container => {
-                container.innerHTML = '';
+        if (elements.startApi) {
+            elements.startApi.addEventListener('click', () => startProcess('api_server'));
+        }
+        if (elements.stopApi) {
+            elements.stopApi.addEventListener('click', () => stopProcess('api_server'));
+        }
+        if (elements.startAutologin) {
+            elements.startAutologin.addEventListener('click', () => startProcess('autologin'));
+        }
+        if (elements.stopAutologin) {
+            elements.stopAutologin.addEventListener('click', () => stopProcess('autologin'));
+        }
+        if (elements.clearAllLogs) {
+            elements.clearAllLogs.addEventListener('click', () => {
+                document.querySelectorAll('.logs-container').forEach(container => {
+                    container.innerHTML = '';
+                });
+                addLogEntry('🗑️ Todos los logs han sido limpiados', 'manager');
             });
-            addLogEntry('🗑️ Todos los logs han sido limpiados', 'manager');
-        });
+        }
 
         // Validaciones de inputs
-        elements.workersCount.addEventListener('input', function() {
-            const value = parseInt(this.value);
-            if (value < 1) this.value = 1;
-            if (value > 50) this.value = 50;
-        });
+        if (elements.workersCount) {
+            elements.workersCount.addEventListener('input', function() {
+                const value = parseInt(this.value);
+                if (value < 1) this.value = 1;
+                if (value > 50) this.value = 50;
+            });
+        }
 
-        elements.sequentialMode.addEventListener('change', function() {
-            elements.workersCount.disabled = this.checked;
-        });
+        if (elements.sequentialMode) {
+            elements.sequentialMode.addEventListener('change', function() {
+                if (elements.workersCount) {
+                    elements.workersCount.disabled = this.checked;
+                }
+            });
+        }
 
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
-            addLogEntry('🚀 Panel de control avanzado cargado', 'manager');
+            addLogEntry('🚀 Panel de control avanzado cargado y funcional', 'manager');
             
             // Conectar WebSocket
             connectWebSocket();
