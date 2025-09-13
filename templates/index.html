@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -32,7 +32,7 @@
             text-shadow: 0 0 10px #00ff41;
         }
 
-        .control-panel {
+        .main-content {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 30px;
@@ -78,20 +78,68 @@
             box-shadow: 0 0 8px #ff4757;
         }
 
+        .config-section {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #353535;
+            border-radius: 5px;
+        }
+
+        .config-title {
+            font-size: 14px;
+            color: #00ff41;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .config-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .config-input {
+            padding: 6px 8px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background-color: #3d3d3d;
+            color: white;
+            font-size: 12px;
+        }
+
+        .config-input-small {
+            width: 80px;
+        }
+
+        .config-input-medium {
+            width: 120px;
+        }
+
+        .config-input-large {
+            width: 200px;
+        }
+
+        .config-label {
+            font-size: 12px;
+            color: #ccc;
+            min-width: 60px;
+        }
+
         .controls {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
             align-items: center;
-            margin-bottom: 15px;
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 8px 16px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
             transition: all 0.2s ease;
             text-transform: uppercase;
@@ -123,18 +171,15 @@
             transform: none;
         }
 
-        .workers-input {
-            padding: 8px;
-            border: 1px solid #555;
-            border-radius: 4px;
-            background-color: #3d3d3d;
-            color: white;
-            width: 80px;
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .workers-label {
-            font-size: 14px;
-            color: #ccc;
+        .checkbox {
+            width: 16px;
+            height: 16px;
         }
 
         .logs-section {
@@ -143,11 +188,12 @@
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
+            grid-column: 1 / -1;
         }
 
         .logs-header {
             display: flex;
-            justify-content: between;
+            justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
         }
@@ -157,18 +203,41 @@
             color: #00ff41;
         }
 
-        .clear-logs-btn {
-            background-color: #747d8c;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
+        .tabs-container {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #444;
         }
 
-        .clear-logs-btn:hover {
-            background-color: #57606f;
+        .tab {
+            padding: 10px 15px;
+            background: #3d3d3d;
+            border: none;
+            border-radius: 5px 5px 0 0;
+            color: #ccc;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 13px;
+        }
+
+        .tab.active {
+            background: #00ff41;
+            color: #1a1a1a;
+            font-weight: bold;
+        }
+
+        .tab:hover:not(.active) {
+            background: #4d4d4d;
+            color: white;
+        }
+
+        .log-content {
+            display: none;
+        }
+
+        .log-content.active {
+            display: block;
         }
 
         .logs-container {
@@ -200,6 +269,20 @@
             color: #2ed573;
         }
 
+        .clear-logs-btn {
+            background-color: #747d8c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .clear-logs-btn:hover {
+            background-color: #57606f;
+        }
+
         .status-bar {
             background: #2d2d2d;
             border: 1px solid #444;
@@ -209,6 +292,7 @@
             justify-content: space-between;
             align-items: center;
             font-size: 14px;
+            grid-column: 1 / -1;
         }
 
         .connection-status {
@@ -236,9 +320,68 @@
             font-size: 12px;
         }
 
+        .file-management {
+            background: #2d2d2d;
+            border: 1px solid #444;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            grid-column: 1 / -1;
+        }
+
+        .file-title {
+            font-size: 1.3rem;
+            color: #00ff41;
+            margin-bottom: 15px;
+        }
+
+        .file-section {
+            background: #353535;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .file-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .file-name {
+            font-weight: bold;
+            color: #00ff41;
+        }
+
+        .file-status {
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-file {
+            padding: 5px 10px;
+            font-size: 11px;
+            background-color: #5a5a5a;
+        }
+
+        .btn-file:hover {
+            background-color: #6a6a6a;
+        }
+
         @media (max-width: 768px) {
-            .control-panel {
+            .main-content {
                 grid-template-columns: 1fr;
+            }
+            
+            .config-row {
+                flex-direction: column;
+                align-items: stretch;
             }
             
             .controls {
@@ -250,10 +393,39 @@
                 width: 100%;
                 margin-bottom: 5px;
             }
+
+            .tabs-container {
+                flex-wrap: wrap;
+            }
         }
 
         .loading {
             opacity: 0.7;
+        }
+
+        .collapsible {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .collapsible:after {
+            content: '▼';
+            margin-left: 10px;
+            transition: transform 0.2s;
+        }
+
+        .collapsible.collapsed:after {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0;
         }
     </style>
 </head>
@@ -261,20 +433,96 @@
     <div class="container">
         <h1>Panel de Control - Autologin</h1>
         
-        <!-- Panel de Control de Procesos -->
-        <div class="control-panel">
+        <!-- Panel de Gestión de Archivos -->
+        <div class="file-management">
+            <h2 class="file-title">📁 Gestión de Archivos de Configuración</h2>
+            
+            <div class="file-section">
+                <div class="file-info">
+                    <div>
+                        <span class="file-name">emails.txt</span>
+                        <div class="file-status" id="emails-status">Verificando...</div>
+                    </div>
+                    <div class="file-actions">
+                        <button class="btn btn-file" onclick="viewFile('emails.txt')">Ver</button>
+                        <button class="btn btn-file" onclick="editFile('emails.txt')">Editar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="file-section">
+                <div class="file-info">
+                    <div>
+                        <span class="file-name">proxies.txt</span>
+                        <div class="file-status" id="proxies-status">Verificando...</div>
+                    </div>
+                    <div class="file-actions">
+                        <button class="btn btn-file" onclick="viewFile('proxies.txt')">Ver</button>
+                        <button class="btn btn-file" onclick="editFile('proxies.txt')">Editar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="file-section">
+                <div class="file-info">
+                    <div>
+                        <span class="file-name">data.json</span>
+                        <div class="file-status" id="data-status">Verificando...</div>
+                    </div>
+                    <div class="file-actions">
+                        <button class="btn btn-file" onclick="viewFile('data.json')">Ver Estado</button>
+                        <button class="btn btn-file" onclick="clearProgress()">Reiniciar Progreso</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
             <!-- API Server -->
             <div class="process-card">
                 <div class="process-title">
                     <div id="api-status" class="status-indicator status-stopped"></div>
-                    API Server
+                    API Server (Puerto 8080)
                 </div>
+
+                <!-- Configuraciones Avanzadas API Server -->
+                <div class="config-section">
+                    <div class="config-title collapsible" onclick="toggleCollapse('api-config')">⚙️ Configuración Avanzada</div>
+                    <div id="api-config" class="collapsible-content">
+                        <div class="config-row">
+                            <span class="config-label">Hilos:</span>
+                            <input id="api-threads" type="number" class="config-input config-input-small" value="20" min="1" max="50">
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Páginas/hilo:</span>
+                            <input id="api-pages" type="number" class="config-input config-input-small" value="1" min="1" max="5">
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Puerto:</span>
+                            <input id="api-port" type="number" class="config-input config-input-small" value="8080" min="8080" max="9999">
+                        </div>
+                        <div class="config-row">
+                            <div class="checkbox-container">
+                                <input id="api-headless" type="checkbox" class="checkbox" checked>
+                                <span class="config-label">Modo Headless</span>
+                            </div>
+                        </div>
+                        <div class="config-row">
+                            <div class="checkbox-container">
+                                <input id="api-proxy-support" type="checkbox" class="checkbox" checked>
+                                <span class="config-label">Soporte Proxies</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="controls">
-                    <button id="start-api" class="btn btn-start">Iniciar API Server</button>
-                    <button id="stop-api" class="btn btn-stop">Detener API Server</button>
+                    <button id="start-api" class="btn btn-start">🚀 Iniciar API Server</button>
+                    <button id="stop-api" class="btn btn-stop">⏹️ Detener API Server</button>
                 </div>
-                <div style="font-size: 12px; color: #aaa; margin-top: 10px;">
-                    Servidor de resolución de captchas en puerto 8080
+                
+                <div style="font-size: 11px; color: #aaa; margin-top: 10px;">
+                    Servidor de resolución de captchas Turnstile
                 </div>
             </div>
 
@@ -284,26 +532,107 @@
                     <div id="autologin-status" class="status-indicator status-stopped"></div>
                     Autologin
                 </div>
-                <div class="controls">
-                    <label class="workers-label">Workers:</label>
-                    <input id="workers-count" type="number" class="workers-input" value="10" min="1" max="50">
-                    <button id="start-autologin" class="btn btn-start">Iniciar Autologin</button>
-                    <button id="stop-autologin" class="btn btn-stop">Detener Autologin</button>
+
+                <!-- Configuración de Workers -->
+                <div class="config-section">
+                    <div class="config-title">🔧 Configuración de Procesamiento</div>
+                    <div class="config-row">
+                        <div class="checkbox-container">
+                            <input id="sequential-mode" type="checkbox" class="checkbox">
+                            <span class="config-label">Modo Secuencial</span>
+                        </div>
+                    </div>
+                    <div class="config-row">
+                        <span class="config-label">Workers:</span>
+                        <input id="workers-count" type="number" class="config-input config-input-small" value="10" min="1" max="50">
+                        <span style="font-size: 11px; color: #aaa;">(solo en modo concurrente)</span>
+                    </div>
                 </div>
-                <div style="font-size: 12px; color: #aaa; margin-top: 10px;">
-                    Procesamiento concurrente de cuentas
+
+                <!-- Configuración TOR -->
+                <div class="config-section">
+                    <div class="config-title collapsible" onclick="toggleCollapse('tor-config')">🔒 Configuración TOR</div>
+                    <div id="tor-config" class="collapsible-content">
+                        <div class="config-row">
+                            <span class="config-label">SOCKS Host:</span>
+                            <input id="tor-socks-host" type="text" class="config-input config-input-medium" value="127.0.0.1">
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">SOCKS Puerto:</span>
+                            <input id="tor-socks-port" type="number" class="config-input config-input-small" value="9050" min="1" max="65535">
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Control Host:</span>
+                            <input id="tor-ctrl-host" type="text" class="config-input config-input-medium" value="127.0.0.1">
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">Control Puerto:</span>
+                            <input id="tor-ctrl-port" type="number" class="config-input config-input-small" value="9051" min="1" max="65535">
+                        </div>
+                        <div class="config-row">
+                            <button class="btn btn-file" onclick="testTorConnection()">🔍 Probar TOR</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuración URL -->
+                <div class="config-section">
+                    <div class="config-title collapsible" onclick="toggleCollapse('url-config')">🌐 Configuración URLs</div>
+                    <div id="url-config" class="collapsible-content">
+                        <div class="config-row">
+                            <span class="config-label">POST URL:</span>
+                            <input id="post-url" type="text" class="config-input config-input-large" value="http://127.0.0.1:80/user">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button id="start-autologin" class="btn btn-start">🚀 Iniciar Autologin</button>
+                    <button id="stop-autologin" class="btn btn-stop">⏹️ Detener Autologin</button>
+                </div>
+
+                <div style="font-size: 11px; color: #aaa; margin-top: 10px;">
+                    Procesamiento de cuentas con TOR y proxies
                 </div>
             </div>
         </div>
 
-        <!-- Sección de Logs en Tiempo Real -->
+        <!-- Sección de Logs con Pestañas -->
         <div class="logs-section">
             <div class="logs-header">
-                <h2 class="logs-title">Logs en Tiempo Real</h2>
-                <button id="clear-logs" class="clear-logs-btn">Limpiar Logs</button>
+                <h2 class="logs-title">📺 Logs en Tiempo Real</h2>
+                <button id="clear-all-logs" class="clear-logs-btn">🗑️ Limpiar Todos</button>
             </div>
-            <div id="logs-container" class="logs-container">
-                <div class="log-entry log-manager">[MANAGER] Panel de control iniciado</div>
+
+            <div class="tabs-container">
+                <button class="tab active" onclick="switchTab('manager')">🖥️ Manager</button>
+                <button class="tab" onclick="switchTab('api-server')">🔧 API Server</button>
+                <button class="tab" onclick="switchTab('autologin')">🔄 Autologin</button>
+                <button class="tab" onclick="switchTab('all')">📋 Todos</button>
+            </div>
+
+            <div id="logs-manager" class="log-content active">
+                <div class="logs-container" data-type="manager">
+                    <div class="log-entry log-manager">[MANAGER] Panel de control cargado</div>
+                </div>
+            </div>
+
+            <div id="logs-api-server" class="log-content">
+                <div class="logs-container" data-type="api-server">
+                    <div class="log-entry log-api-server">[API_SERVER] Esperando logs...</div>
+                </div>
+            </div>
+
+            <div id="logs-autologin" class="log-content">
+                <div class="logs-container" data-type="autologin">
+                    <div class="log-entry log-autologin">[AUTOLOGIN] Esperando logs...</div>
+                </div>
+            </div>
+
+            <div id="logs-all" class="log-content">
+                <div class="logs-container" data-type="all">
+                    <div class="log-entry log-manager">[MANAGER] Panel de control cargado</div>
+                </div>
             </div>
         </div>
 
@@ -324,6 +653,7 @@
         let websocket = null;
         let reconnectInterval = null;
         let statusUpdateInterval = null;
+        let currentTab = 'manager';
 
         // Elementos DOM
         const elements = {
@@ -339,13 +669,29 @@
             stopApi: document.getElementById('stop-api'),
             startAutologin: document.getElementById('start-autologin'),
             stopAutologin: document.getElementById('stop-autologin'),
-            clearLogs: document.getElementById('clear-logs'),
+            clearAllLogs: document.getElementById('clear-all-logs'),
             
-            // Inputs
+            // Configuraciones API
+            apiThreads: document.getElementById('api-threads'),
+            apiPages: document.getElementById('api-pages'),
+            apiPort: document.getElementById('api-port'),
+            apiHeadless: document.getElementById('api-headless'),
+            apiProxySupport: document.getElementById('api-proxy-support'),
+            
+            // Configuraciones Autologin
+            sequentialMode: document.getElementById('sequential-mode'),
             workersCount: document.getElementById('workers-count'),
+            torSocksHost: document.getElementById('tor-socks-host'),
+            torSocksPort: document.getElementById('tor-socks-port'),
+            torCtrlHost: document.getElementById('tor-ctrl-host'),
+            torCtrlPort: document.getElementById('tor-ctrl-port'),
+            postUrl: document.getElementById('post-url'),
             
-            // Contenedores
-            logsContainer: document.getElementById('logs-container')
+            // Contenedores de logs
+            logsManager: document.querySelector('[data-type="manager"]'),
+            logsApiServer: document.querySelector('[data-type="api-server"]'),
+            logsAutologin: document.querySelector('[data-type="autologin"]'),
+            logsAll: document.querySelector('[data-type="all"]')
         };
 
         // Funciones de utilidad
@@ -356,22 +702,29 @@
         }
 
         function addLogEntry(message, type = 'manager') {
+            const timestamp = new Date().toLocaleTimeString('es-ES');
             const logEntry = document.createElement('div');
             logEntry.className = `log-entry log-${type.toLowerCase().replace('_', '-')}`;
-            
-            const timestamp = new Date().toLocaleTimeString('es-ES');
             logEntry.textContent = `[${timestamp}] ${message}`;
             
-            elements.logsContainer.appendChild(logEntry);
+            // Agregar a contenedor específico
+            const specificContainer = elements[`logs${type.charAt(0).toUpperCase() + type.slice(1).replace('_', '')}`) || elements.logsManager;
+            specificContainer.appendChild(logEntry);
             
-            // Auto-scroll hacia abajo
-            elements.logsContainer.scrollTop = elements.logsContainer.scrollHeight;
+            // Agregar a contenedor "todos"
+            const allEntry = logEntry.cloneNode(true);
+            elements.logsAll.appendChild(allEntry);
             
-            // Limitar número de logs (mantener solo los últimos 500)
-            const logs = elements.logsContainer.children;
-            if (logs.length > 500) {
-                elements.logsContainer.removeChild(logs[0]);
-            }
+            // Auto-scroll
+            specificContainer.scrollTop = specificContainer.scrollHeight;
+            elements.logsAll.scrollTop = elements.logsAll.scrollHeight;
+            
+            // Limitar logs (mantener últimos 300)
+            [specificContainer, elements.logsAll].forEach(container => {
+                if (container.children.length > 300) {
+                    container.removeChild(container.firstChild);
+                }
+            });
         }
 
         function updateProcessStatus(processName, status) {
@@ -392,28 +745,69 @@
             });
         }
 
+        function switchTab(tabName) {
+            // Actualizar pestañas
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Mostrar contenido correspondiente
+            document.querySelectorAll('.log-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`logs-${tabName}`).classList.add('active');
+            
+            currentTab = tabName;
+        }
+
+        function toggleCollapse(elementId) {
+            const element = document.getElementById(elementId);
+            const trigger = event.target;
+            
+            element.classList.toggle('collapsed');
+            trigger.classList.toggle('collapsed');
+        }
+
         // Funciones de API
-        async function startProcess(processName, workers = null) {
+        async function startProcess(processName) {
             setButtonsLoading(processName, true);
             
             try {
-                const url = workers !== null 
-                    ? `/start/${processName}?workers=${workers}`
-                    : `/start/${processName}`;
+                let url = `/start/${processName}`;
+                const params = new URLSearchParams();
+                
+                if (processName === 'api_server') {
+                    // Configuraciones API Server (preparado para futuro)
+                    params.append('threads', elements.apiThreads.value);
+                    params.append('pages', elements.apiPages.value);
+                    params.append('port', elements.apiPort.value);
+                    params.append('headless', elements.apiHeadless.checked);
+                    params.append('proxy_support', elements.apiProxySupport.checked);
+                } else if (processName === 'autologin') {
+                    // Configuraciones Autologin
+                    params.append('sequential', elements.sequentialMode.checked);
+                    if (!elements.sequentialMode.checked) {
+                        params.append('workers', elements.workersCount.value);
+                    }
+                }
+                
+                if (params.toString()) {
+                    url += '?' + params.toString();
+                }
                 
                 const response = await fetch(url, { method: 'POST' });
                 const data = await response.json();
                 
                 if (response.ok) {
-                    addLogEntry(`✓ ${data.message}`, 'manager');
+                    addLogEntry(`✅ ${data.message}`, 'manager');
+                    if (data.command) {
+                        addLogEntry(`🔧 Comando: ${data.command}`, 'manager');
+                    }
                 } else {
-                    addLogEntry(`✗ Error: ${data.detail}`, 'manager');
+                    addLogEntry(`❌ Error: ${data.detail}`, 'manager');
                 }
             } catch (error) {
-                addLogEntry(`✗ Error de red: ${error.message}`, 'manager');
+                addLogEntry(`❌ Error de red: ${error.message}`, 'manager');
             } finally {
                 setButtonsLoading(processName, false);
-                updateStatus(); // Actualizar estado inmediatamente
+                updateStatus();
             }
         }
 
@@ -425,15 +819,15 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    addLogEntry(`✓ ${data.message}`, 'manager');
+                    addLogEntry(`✅ ${data.message}`, 'manager');
                 } else {
-                    addLogEntry(`✗ Error: ${data.detail}`, 'manager');
+                    addLogEntry(`❌ Error: ${data.detail}`, 'manager');
                 }
             } catch (error) {
-                addLogEntry(`✗ Error de red: ${error.message}`, 'manager');
+                addLogEntry(`❌ Error de red: ${error.message}`, 'manager');
             } finally {
                 setButtonsLoading(processName, false);
-                updateStatus(); // Actualizar estado inmediatamente
+                updateStatus();
             }
         }
 
@@ -442,14 +836,149 @@
                 const response = await fetch('/status');
                 const data = await response.json();
                 
-                // Actualizar indicadores de estado
                 updateProcessStatus('api_server', data.processes.api_server);
                 updateProcessStatus('autologin', data.processes.autologin);
+                
+                // Actualizar información de archivos
+                updateFileInfo('emails.txt');
+                updateFileInfo('proxies.txt');
+                updateFileInfo('data.json');
                 
                 updateTimestamp();
             } catch (error) {
                 console.error('Error actualizando estado:', error);
-                addLogEntry(`⚠ Error actualizando estado: ${error.message}`, 'manager');
+                addLogEntry(`⚠️ Error actualizando estado: ${error.message}`, 'manager');
+            }
+        }
+
+        async function updateFileInfo(filename) {
+            try {
+                const response = await fetch(`/files/${filename}`);
+                const data = await response.json();
+                
+                const statusElement = document.getElementById(`${filename.split('.')[0]}-status`);
+                if (statusElement) {
+                    if (data.exists) {
+                        let status = `${data.size_kb} KB`;
+                        if (data.line_count !== null) {
+                            status += ` • ${data.line_count} líneas`;
+                        }
+                        statusElement.textContent = status;
+                        statusElement.style.color = '#2ed573';
+                    } else {
+                        statusElement.textContent = 'No encontrado';
+                        statusElement.style.color = '#ff4757';
+                    }
+                }
+            } catch (error) {
+                console.error(`Error actualizando info de ${filename}:`, error);
+            }
+        }
+
+        // Funciones de gestión de archivos
+        async function viewFile(filename) {
+            addLogEntry(`👀 Viendo archivo: ${filename}`, 'manager');
+            
+            try {
+                const response = await fetch(`/files/${filename}/content`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Crear modal o ventana para mostrar contenido
+                    showFileContent(data);
+                } else {
+                    addLogEntry(`❌ Error viendo ${filename}: ${data.detail}`, 'manager');
+                }
+            } catch (error) {
+                addLogEntry(`❌ Error cargando ${filename}: ${error.message}`, 'manager');
+            }
+        }
+
+        function showFileContent(data) {
+            // Crear modal simple para mostrar contenido
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); z-index: 1000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+            
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: #2d2d2d; border: 1px solid #444; border-radius: 10px;
+                padding: 20px; max-width: 80%; max-height: 80%;
+                overflow: auto; color: white; font-family: 'Courier New', monospace;
+            `;
+            
+            content.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="color: #00ff41;">${data.filename}</h3>
+                    <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                            style="background: #ff4757; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer;">
+                        Cerrar
+                    </button>
+                </div>
+                <pre style="white-space: pre-wrap; background: #1a1a1a; padding: 15px; border-radius: 5px; margin: 0;">${data.content}</pre>
+                ${data.lines_shown ? `<p style="color: #ccc; font-size: 12px; margin-top: 10px;">Mostrando ${data.lines_shown} líneas</p>` : ''}
+            `;
+            
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+        }
+
+        function editFile(filename) {
+            addLogEntry(`✏️ Nota: Editar archivo ${filename} - Usa tu editor preferido`, 'manager');
+            addLogEntry(`💡 El archivo está en la raíz del proyecto: ${filename}`, 'manager');
+        }
+
+        async function clearProgress() {
+            if (!confirm('¿Estás seguro de que quieres reiniciar el progreso? Esto creará un backup del archivo actual.')) {
+                return;
+            }
+            
+            addLogEntry('🔄 Reiniciando progreso...', 'manager');
+            
+            try {
+                const response = await fetch('/files/data.json/clear', { method: 'POST' });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addLogEntry(`✅ ${data.message}`, 'manager');
+                } else {
+                    addLogEntry(`❌ Error: ${data.detail}`, 'manager');
+                }
+            } catch (error) {
+                addLogEntry(`❌ Error reiniciando progreso: ${error.message}`, 'manager');
+            }
+        }
+
+        async function testTorConnection() {
+            addLogEntry('🔍 Probando conexión TOR...', 'manager');
+            
+            // Mostrar indicador de carga
+            const testButton = event.target;
+            const originalText = testButton.textContent;
+            testButton.textContent = '🔄 Probando...';
+            testButton.disabled = true;
+            
+            try {
+                const response = await fetch('/test/tor', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.tor_working) {
+                    addLogEntry(`✅ ${data.message}`, 'manager');
+                    addLogEntry(`🌐 IP Normal: ${data.normal_ip} | IP TOR: ${data.tor_ip}`, 'manager');
+                } else {
+                    addLogEntry(`⚠️ ${data.message}`, 'manager');
+                    if (data.normal_ip) {
+                        addLogEntry(`🌐 IP Normal: ${data.normal_ip} | IP TOR: ${data.tor_ip}`, 'manager');
+                    }
+                }
+            } catch (error) {
+                addLogEntry(`❌ Error probando TOR: ${error.message}`, 'manager');
+            } finally {
+                testButton.textContent = originalText;
+                testButton.disabled = false;
             }
         }
 
@@ -465,9 +994,8 @@
                     console.log('WebSocket conectado');
                     elements.wsIndicator.className = 'ws-indicator ws-connected';
                     elements.wsStatus.textContent = 'Conectado';
-                    addLogEntry('✓ Conexión WebSocket establecida', 'manager');
+                    addLogEntry('✅ Conexión WebSocket establecida', 'manager');
                     
-                    // Limpiar intervalo de reconexión si existe
                     if (reconnectInterval) {
                         clearInterval(reconnectInterval);
                         reconnectInterval = null;
@@ -478,12 +1006,11 @@
                     const message = event.data;
                     
                     if (message === 'ping') {
-                        // Responder al ping del servidor
                         websocket.send('pong');
                         return;
                     }
                     
-                    // Determinar el tipo de log basado en el prefijo
+                    // Determinar tipo de log
                     let logType = 'manager';
                     if (message.includes('[API_SERVER]')) {
                         logType = 'api_server';
@@ -498,9 +1025,8 @@
                     console.log('WebSocket desconectado:', event.code, event.reason);
                     elements.wsIndicator.className = 'ws-indicator ws-disconnected';
                     elements.wsStatus.textContent = 'Desconectado';
-                    addLogEntry('⚠ Conexión WebSocket perdida - Reintentando...', 'manager');
+                    addLogEntry('⚠️ Conexión WebSocket perdida - Reintentando...', 'manager');
                     
-                    // Intentar reconectar cada 5 segundos
                     if (!reconnectInterval) {
                         reconnectInterval = setInterval(connectWebSocket, 5000);
                     }
@@ -508,14 +1034,13 @@
                 
                 websocket.onerror = function(error) {
                     console.error('Error WebSocket:', error);
-                    addLogEntry('✗ Error en conexión WebSocket', 'manager');
+                    addLogEntry('❌ Error en conexión WebSocket', 'manager');
                 };
                 
             } catch (error) {
                 console.error('Error creando WebSocket:', error);
-                addLogEntry(`✗ Error creando WebSocket: ${error.message}`, 'manager');
+                addLogEntry(`❌ Error creando WebSocket: ${error.message}`, 'manager');
                 
-                // Intentar reconectar
                 if (!reconnectInterval) {
                     reconnectInterval = setInterval(connectWebSocket, 5000);
                 }
@@ -526,27 +1051,30 @@
         elements.startApi.addEventListener('click', () => startProcess('api_server'));
         elements.stopApi.addEventListener('click', () => stopProcess('api_server'));
         
-        elements.startAutologin.addEventListener('click', () => {
-            const workers = parseInt(elements.workersCount.value) || 10;
-            startProcess('autologin', workers);
-        });
+        elements.startAutologin.addEventListener('click', () => startProcess('autologin'));
         elements.stopAutologin.addEventListener('click', () => stopProcess('autologin'));
         
-        elements.clearLogs.addEventListener('click', () => {
-            elements.logsContainer.innerHTML = '';
-            addLogEntry('Logs limpiados', 'manager');
+        elements.clearAllLogs.addEventListener('click', () => {
+            document.querySelectorAll('.logs-container').forEach(container => {
+                container.innerHTML = '';
+            });
+            addLogEntry('🗑️ Todos los logs han sido limpiados', 'manager');
         });
 
-        // Validación del input de workers
+        // Validaciones de inputs
         elements.workersCount.addEventListener('input', function() {
             const value = parseInt(this.value);
             if (value < 1) this.value = 1;
             if (value > 50) this.value = 50;
         });
 
+        elements.sequentialMode.addEventListener('change', function() {
+            elements.workersCount.disabled = this.checked;
+        });
+
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
-            addLogEntry('🚀 Panel de control cargado', 'manager');
+            addLogEntry('🚀 Panel de control avanzado cargado', 'manager');
             
             // Conectar WebSocket
             connectWebSocket();
@@ -554,24 +1082,18 @@
             // Actualizar estado inicial
             updateStatus();
             
-            // Configurar actualización periódica del estado cada 2 segundos
+            // Configurar actualización periódica
             statusUpdateInterval = setInterval(updateStatus, 2000);
             
             // Actualizar timestamp cada segundo
             setInterval(updateTimestamp, 1000);
         });
 
-        // Limpiar intervalos al cerrar la página
+        // Limpiar intervalos al cerrar
         window.addEventListener('beforeunload', function() {
-            if (websocket) {
-                websocket.close();
-            }
-            if (reconnectInterval) {
-                clearInterval(reconnectInterval);
-            }
-            if (statusUpdateInterval) {
-                clearInterval(statusUpdateInterval);
-            }
+            if (websocket) websocket.close();
+            if (reconnectInterval) clearInterval(reconnectInterval);
+            if (statusUpdateInterval) clearInterval(statusUpdateInterval);
         });
     </script>
 </body>

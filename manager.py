@@ -187,8 +187,17 @@ async def dashboard(request: Request):
 
 
 @app.post("/start/{process_name}")
-async def start_process(process_name: str, workers: Optional[int] = None):
-    """Inicia un proceso específico (api_server o autologin)"""
+async def start_process(
+    process_name: str, 
+    workers: Optional[int] = None,
+    sequential: Optional[bool] = None,
+    threads: Optional[int] = None,
+    pages: Optional[int] = None,
+    port: Optional[int] = None,
+    headless: Optional[bool] = None,
+    proxy_support: Optional[bool] = None
+):
+    """Inicia un proceso específico con configuraciones avanzadas"""
     if process_name not in processes:
         raise HTTPException(status_code=400, detail=f"Proceso desconocido: {process_name}")
     
@@ -201,9 +210,19 @@ async def start_process(process_name: str, workers: Optional[int] = None):
             # Construir comando según el proceso
             if process_name == "api_server":
                 command = ["python", "api_server.py"]
+                # TODO: En futuro se pueden agregar parámetros para API server
+                # if port: command.extend(["--port", str(port)])
+                # if threads: command.extend(["--threads", str(threads)])
+                
             elif process_name == "autologin":
-                workers_count = workers if workers and workers > 0 else 10
-                command = ["python", "autologin.py", "--workers", str(workers_count)]
+                command = ["python", "autologin.py"]
+                
+                # Agregar configuraciones de autologin
+                if sequential:
+                    command.append("--sequential")
+                else:
+                    workers_count = workers if workers and workers > 0 else 10
+                    command.extend(["--workers", str(workers_count)])
             else:
                 raise HTTPException(status_code=400, detail=f"Proceso no válido: {process_name}")
             
@@ -235,10 +254,18 @@ async def start_process(process_name: str, workers: Optional[int] = None):
             start_message = f"[MANAGER] Iniciando {process_name}..."
             await websocket_manager.broadcast(start_message)
             
+            config_info = ""
+            if process_name == "autologin":
+                if sequential:
+                    config_info = " (modo secuencial)"
+                else:
+                    config_info = f" (workers: {workers or 10})"
+            
             return {
                 "status": "success",
-                "message": f"Proceso {process_name} iniciado exitosamente",
-                "pid": process.pid
+                "message": f"Proceso {process_name} iniciado exitosamente{config_info}",
+                "pid": process.pid,
+                "command": " ".join(command)
             }
         
         except Exception as e:
@@ -339,6 +366,175 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         print(f"[MANAGER] Error en WebSocket: {e}")
         websocket_manager.disconnect(websocket)
+
+
+@app.get("/files/{filename}")
+async def get_file_info(filename: str):
+    """Obtiene información de un archivo de configuración"""
+    allowed_files = ["emails.txt", "proxies.txt", "data.json"]
+    if filename not in allowed_files:
+        raise HTTPException(status_code=400, detail="Archivo no permitido")
+    
+    file_path = Path(filename)
+    
+    if not file_path.exists():
+        return {
+            "exists": False,
+            "filename": filename,
+            "message": f"Archivo {filename} no encontrado"
+        }
+    
+    try:
+        stat = file_path.stat()
+        
+        # Para archivos de texto, contar líneas
+        line_count = 0
+        if filename.endswith('.txt'):
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    line_count = sum(1 for line in f if line.strip() and not line.strip().startswith('#'))
+            except:
+                line_count = 0
+        
+        return {
+            "exists": True,
+            "filename": filename,
+            "size_bytes": stat.st_size,
+            "size_kb": round(stat.st_size / 1024, 2),
+            "last_modified": stat.st_mtime,
+            "line_count": line_count if filename.endswith('.txt') else None
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error leyendo archivo: {str(e)}")
+
+
+@app.get("/files/{filename}/content")
+async def get_file_content(filename: str, lines: Optional[int] = None):
+    """Obtiene el contenido de un archivo (limitado por seguridad)"""
+    allowed_files = ["emails.txt", "proxies.txt", "data.json"]
+    if filename not in allowed_files:
+        raise HTTPException(status_code=400, detail="Archivo no permitido")
+    
+    file_path = Path(filename)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"Archivo {filename} no encontrado")
+    
+    try:
+        # Limitar lectura para seguridad
+        max_lines = min(lines or 50, 100)
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            if filename == "data.json":
+                # Para JSON, cargar y formatear
+                import json
+                try:
+                    data = json.load(f)
+                    return {
+                        "filename": filename,
+                        "content_type": "json",
+                        "content": json.dumps(data, indent=2)[:5000]  # Limitar tamaño
+                    }
+                except json.JSONDecodeError:
+                    content = f.read()[:2000]
+            else:
+                # Para archivos de texto, leer líneas
+                lines_read = []
+                for i, line in enumerate(f):
+                    if i >= max_lines:
+                        break
+                    # Ocultar partes sensibles de emails
+                    if filename == "emails.txt" and "|" in line:
+                        email, _ = line.split("|", 1)
+                        lines_read.append(f"{email}|***")
+                    else:
+                        lines_read.append(line.rstrip())
+                content = "\n".join(lines_read)
+        
+        return {
+            "filename": filename,
+            "content_type": "text",
+            "content": content,
+            "lines_shown": min(max_lines, len(lines_read)) if filename != "data.json" else None
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error leyendo contenido: {str(e)}")
+
+
+@app.post("/test/tor")
+async def test_tor_connection():
+    """Prueba la conexión TOR"""
+    try:
+        # Intentar importar y probar TOR usando check_toy.py si existe
+        import requests
+        
+        # Probar conexión directa
+        try:
+            normal_response = requests.get("https://httpbin.org/ip", timeout=10)
+            normal_ip = normal_response.json().get('origin', 'unknown')
+        except:
+            normal_ip = "unknown"
+        
+        # Probar conexión via TOR
+        try:
+            tor_proxies = {
+                'http': 'socks5://127.0.0.1:9050',
+                'https': 'socks5://127.0.0.1:9050'
+            }
+            tor_response = requests.get("https://httpbin.org/ip", proxies=tor_proxies, timeout=15)
+            tor_ip = tor_response.json().get('origin', 'unknown')
+            
+            tor_working = tor_ip != normal_ip and tor_ip != "unknown"
+            
+            return {
+                "status": "success" if tor_working else "warning",
+                "tor_working": tor_working,
+                "normal_ip": normal_ip,
+                "tor_ip": tor_ip,
+                "message": "TOR funciona correctamente" if tor_working else "TOR no está funcionando correctamente"
+            }
+        except Exception as tor_error:
+            return {
+                "status": "error",
+                "tor_working": False,
+                "normal_ip": normal_ip,
+                "tor_ip": "error",
+                "message": f"Error conectando via TOR: {str(tor_error)}"
+            }
+    
+    except Exception as e:
+        return {
+            "status": "error",
+            "tor_working": False,
+            "message": f"Error probando TOR: {str(e)}"
+        }
+
+
+@app.post("/files/data.json/clear")
+async def clear_progress():
+    """Reinicia el progreso eliminando data.json"""
+    data_path = Path("data.json")
+    
+    try:
+        if data_path.exists():
+            # Hacer backup antes de eliminar
+            backup_path = Path(f"data_backup_{int(time.time())}.json")
+            data_path.rename(backup_path)
+            
+            await websocket_manager.broadcast(f"[MANAGER] Progreso reiniciado. Backup creado: {backup_path.name}")
+            
+            return {
+                "status": "success",
+                "message": f"Progreso reiniciado. Backup creado como {backup_path.name}"
+            }
+        else:
+            return {
+                "status": "info",
+                "message": "No hay progreso que reiniciar (data.json no existe)"
+            }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reiniciando progreso: {str(e)}")
 
 
 if __name__ == "__main__":
