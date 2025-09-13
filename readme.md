@@ -1,5 +1,20 @@
 # autologin + api_server — README
 
+## 🚀 Quick Start
+
+1. **Clone the repository**
+2. **Install dependencies**: `pip install -r requirements.txt && python -m playwright install`
+3. **Setup your files** (IMPORTANT - rename the example files):
+   ```bash
+   cp emails.example.txt emails.txt
+   cp proxies.example.txt proxies.txt
+   cp data.example.json data.json
+   ```
+4. **Add your data** to `emails.txt` and `proxies.txt`
+5. **Start the API**: `python api_server.py`
+6. **Run autologin**: `python autologin.py`
+7. **Or use the web panel**: `python manager.py` → http://localhost:8000
+
 ## Files
 - `autologin.py` — main script.
 - `api_server.py` — small local API that returns a token.
@@ -31,19 +46,32 @@ Default address: `http://localhost:8080`
 - `GET /result?id=<task_id>` → returns the token status or value
 
 ## Prepare input files
-Create these next to `autologin.py`:
+**IMPORTANT**: Copy the example files and rename them (remove `.example`):
 
-**emails.txt**
+```bash
+# Copy example files and rename them
+cp emails.example.txt emails.txt
+cp proxies.example.txt proxies.txt
+cp data.example.json data.json
+```
+
+**⚠️ The files with `.example` in the name are just templates - you need to rename them to work!**
+
+**emails.txt** (copy from emails.example.txt)
 ```
 test1@example.com|example-pass-1
 test2@example.com|example-pass-2
 ```
 
-**proxies.txt**
+**proxies.txt** (copy from proxies.example.txt)
 ```
 127.0.0.1:3128
 203.0.113.10:8080
 ```
+
+**data.json** (copy from data.example.json)
+- This file will be created automatically with your account data
+- Keep this file private as it contains sensitive information
 
 ## Configure (OPTIONAL)
 Open `autologin.py` and adjust:
@@ -135,8 +163,13 @@ Abre tu navegador en: `http://localhost:8000`
     └── index.html      (NUEVO - Interfaz web)
 ```
 
-## Notes
-- Keep `data.json` private because it contains account information.
-- Concurrent processing requires sufficient proxies (at least as many as workers).
-- Monitor system resources when using high worker counts.
-- **NUEVO**: Usa el panel web (`manager.py`) para control centralizado y monitoreo en tiempo real.
+## Security Notes
+- **Keep sensitive files private**: `data.json`, `emails.txt`, `proxies.txt` contain sensitive information
+- **Use example files**: Copy from `*.example.*` files and add your own data
+- **Git ignore**: Sensitive files are automatically ignored by `.gitignore`
+- **Never commit**: Real account data, proxies, or processing results to version control
+
+## Performance Notes
+- Concurrent processing requires sufficient proxies (at least as many as workers)
+- Monitor system resources when using high worker counts
+- **NEW**: Use the web panel (`manager.py`) for centralized control and real-time monitoring

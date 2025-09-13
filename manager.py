@@ -94,12 +94,14 @@ def read_process_output(process: subprocess.Popen, process_name: str, loop):
                     
                     # Enviar a WebSocket de forma asíncrona usando el loop del servidor
                     try:
+                        # Enviar mensaje de forma más simple
                         asyncio.run_coroutine_threadsafe(
                             websocket_manager.broadcast(log_message),
                             loop
-                        ).result(timeout=1.0)  # Timeout para evitar bloqueos
-                    except Exception as ws_error:
-                        print(f"[MANAGER] Error enviando WebSocket: {ws_error}")
+                        ).result(timeout=0.1)
+                    except:
+                        # Ignorar errores de WebSocket para evitar spam
+                        pass
             else:
                 time.sleep(0.1)  # Pequeña pausa si no hay stdout
         
@@ -121,9 +123,10 @@ def read_process_output(process: subprocess.Popen, process_name: str, loop):
             asyncio.run_coroutine_threadsafe(
                 websocket_manager.broadcast(error_message),
                 loop
-            ).result(timeout=1.0)
-        except Exception as ws_error:
-            print(f"[MANAGER] Error enviando WebSocket error: {ws_error}")
+            ).result(timeout=0.1)
+        except:
+            # Ignorar errores de WebSocket para evitar spam
+            pass
 
 
 def get_process_status(process_name: str) -> str:
@@ -225,7 +228,21 @@ async def start_process(
                     workers_count = workers if workers and workers > 0 else 10
                     command.extend(["--workers", str(workers_count)])
                     
-            elif process_name == "tor":
+        elif process_name == "tor":
+            # Verificar si TOR ya está ejecutándose (simplificado)
+            try:
+                import socket
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                result = sock.connect_ex(('127.0.0.1', 9050))
+                sock.close()
+                if result == 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="TOR ya está ejecutándose en el puerto 9050. Usa 'Detener TOR' primero."
+                    )
+            except:
+                pass
+                
                 # Buscar tor.exe en diferentes ubicaciones posibles
                 tor_paths = [
                     "tor-bundle/tor.exe",
@@ -358,6 +375,19 @@ async def get_status():
     
     for process_name in processes.keys():
         status_info[process_name] = get_process_status(process_name)
+    
+    # Para TOR, verificar si está ejecutándose independientemente del proceso gestionado
+    if status_info.get("tor") == "stopped":
+        # Verificar si TOR está ejecutándose en los puertos (simplificado)
+        try:
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            result = sock.connect_ex(('127.0.0.1', 9050))
+            sock.close()
+            if result == 0:
+                status_info["tor"] = "running"
+        except:
+            pass
     
     # Información adicional del sistema
     data_json_path = Path("data.json")
@@ -493,6 +523,57 @@ async def get_file_content(filename: str, lines: Optional[int] = None):
         raise HTTPException(status_code=500, detail=f"Error leyendo contenido: {str(e)}")
 
 
+@app.post("/tor/status")
+async def get_tor_status():
+    """Obtiene el estado de TOR (si está ejecutándose)"""
+    try:
+        tor_running = await is_tor_already_running()
+        
+        if tor_running:
+            # Intentar obtener IP a través de TOR
+            try:
+                import requests
+                import socks
+                
+                # Configurar proxy SOCKS para TOR
+                session = requests.Session()
+                session.proxies = {
+                    'http': 'socks5://127.0.0.1:9050',
+                    'https': 'socks5://127.0.0.1:9050'
+                }
+                
+                response = session.get('https://httpbin.org/ip', timeout=10)
+                tor_ip = response.json().get('origin', 'unknown')
+                
+                return {
+                    "status": "success",
+                    "tor_running": True,
+                    "tor_ip": tor_ip,
+                    "message": "TOR está ejecutándose y funcionando correctamente"
+                }
+            except Exception as e:
+                return {
+                    "status": "warning",
+                    "tor_running": True,
+                    "tor_ip": "unknown",
+                    "message": f"TOR está ejecutándose pero no se pudo verificar la IP: {str(e)}"
+                }
+        else:
+            return {
+                "status": "info",
+                "tor_running": False,
+                "tor_ip": None,
+                "message": "TOR no está ejecutándose"
+            }
+            
+    except Exception as e:
+        return {
+            "status": "error",
+            "tor_running": False,
+            "message": f"Error verificando estado de TOR: {str(e)}"
+        }
+
+
 @app.post("/test/tor")
 async def test_tor_connection():
     """Prueba la conexión TOR"""
@@ -548,6 +629,32 @@ async def test_tor_connection():
             "tor_working": False,
             "message": f"Error probando TOR: {str(e)}"
         }
+
+
+async def is_tor_already_running() -> bool:
+    """Verifica si TOR ya está ejecutándose en los puertos 9050/9051"""
+    import socket
+    
+    try:
+        # Verificar puerto SOCKS 9050
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex(('127.0.0.1', 9050))
+        sock.close()
+        
+        if result == 0:  # Puerto abierto
+            return True
+            
+        # Verificar puerto Control 9051
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex(('127.0.0.1', 9051))
+        sock.close()
+        
+        return result == 0
+        
+    except Exception:
+        return False
 
 
 async def download_tor_bundle():
