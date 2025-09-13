@@ -1,8 +1,0 @@
-# Email accounts file
-# Format: email|password
-# Example:
-# example1@gmail.com|password123
-# example2@gmail.com|password456
-# example3@gmail.com|password789
-
-# Add your email accounts here, one per line

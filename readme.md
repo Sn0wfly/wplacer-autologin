@@ -4,16 +4,19 @@
 
 1. **Clone the repository**
 2. **Install dependencies**: `pip install -r requirements.txt && python -m playwright install`
-3. **Setup your files** (IMPORTANT - rename the example files):
+3. **Create your files**:
    ```bash
-   cp emails.example.txt emails.txt
-   cp proxies.example.txt proxies.txt
-   cp data.example.json data.json
+   # Create emails.txt with your accounts
+   echo "email1@example.com|password1" > emails.txt
+   echo "email2@example.com|password2" >> emails.txt
+   
+   # Create proxies.txt with your proxies
+   echo "127.0.0.1:3128" > proxies.txt
+   echo "203.0.113.10:8080" >> proxies.txt
    ```
-4. **Add your data** to `emails.txt` and `proxies.txt`
-5. **Start the API**: `python api_server.py`
-6. **Run autologin**: `python autologin.py`
-7. **Or use the web panel**: `python manager.py` → http://localhost:8000
+4. **Start the API**: `python api_server.py`
+5. **Run autologin**: `python autologin.py`
+6. **Or use the web panel**: `python manager_simple.py` → http://localhost:8000
 
 ## Files
 - `autologin.py` — main script.
@@ -46,30 +49,21 @@ Default address: `http://localhost:8080`
 - `GET /result?id=<task_id>` → returns the token status or value
 
 ## Prepare input files
-**IMPORTANT**: Copy the example files and rename them (remove `.example`):
+**IMPORTANT**: Create your own files with your data:
 
-```bash
-# Copy example files and rename them
-cp emails.example.txt emails.txt
-cp proxies.example.txt proxies.txt
-cp data.example.json data.json
-```
-
-**⚠️ The files with `.example` in the name are just templates - you need to rename them to work!**
-
-**emails.txt** (copy from emails.example.txt)
+**emails.txt** (create this file)
 ```
 test1@example.com|example-pass-1
 test2@example.com|example-pass-2
 ```
 
-**proxies.txt** (copy from proxies.example.txt)
+**proxies.txt** (create this file)
 ```
 127.0.0.1:3128
 203.0.113.10:8080
 ```
 
-**data.json** (copy from data.example.json)
+**data.json** (created automatically)
 - This file will be created automatically with your account data
 - Keep this file private as it contains sensitive information
 
@@ -165,7 +159,7 @@ Abre tu navegador en: `http://localhost:8000`
 
 ## Security Notes
 - **Keep sensitive files private**: `data.json`, `emails.txt`, `proxies.txt` contain sensitive information
-- **Use example files**: Copy from `*.example.*` files and add your own data
+- **Create your own files**: Create `emails.txt` and `proxies.txt` with your own data
 - **Git ignore**: Sensitive files are automatically ignored by `.gitignore`
 - **Never commit**: Real account data, proxies, or processing results to version control
 

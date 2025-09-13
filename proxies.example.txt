@@ -1,8 +1,0 @@
-# Proxies file
-# Format: ip:port
-# Example:
-# 127.0.0.1:8080
-# 192.168.1.1:3128
-# 10.0.0.1:1080
-
-# Add your proxies here, one per line
