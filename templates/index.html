@@ -764,9 +764,12 @@
                         if (data.normal_ip) {
                             addLogEntry(`🌐 IP Normal: ${data.normal_ip} | IP TOR: ${data.tor_ip}`, 'manager');
                         }
-                    } else {
-                        addLogEntry(`❌ ${data.message}`, 'manager');
+                } else {
+                    addLogEntry(`❌ ${data.message}`, 'manager');
+                    if (data.suggestion) {
+                        addLogEntry(`💡 Sugerencia: ${data.suggestion}`, 'manager');
                     }
+                }
                 } catch (error) {
                     addLogEntry(`❌ Error probando TOR: ${error.message}`, 'manager');
                 } finally {

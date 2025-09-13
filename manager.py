@@ -494,12 +494,20 @@ async def test_tor_connection():
                 "message": "TOR funciona correctamente" if tor_working else "TOR no está funcionando correctamente"
             }
         except Exception as tor_error:
+            error_msg = str(tor_error)
+            # Detectar error específico de conexión rechazada
+            if "10061" in error_msg or "refused" in error_msg.lower():
+                helpful_message = "TOR no está ejecutándose. Instala y ejecuta Tor Browser o tor.exe primero."
+            else:
+                helpful_message = f"Error conectando via TOR: {error_msg}"
+            
             return {
                 "status": "error",
                 "tor_working": False,
                 "normal_ip": normal_ip,
                 "tor_ip": "error",
-                "message": f"Error conectando via TOR: {str(tor_error)}"
+                "message": helpful_message,
+                "suggestion": "Descarga Tor Browser desde https://www.torproject.org/download/ y ejecutalo"
             }
     
     except Exception as e:
