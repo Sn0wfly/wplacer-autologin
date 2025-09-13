@@ -26,7 +26,8 @@ templates = Jinja2Templates(directory="templates")
 # Diccionario global para almacenar los procesos y su estado
 processes: Dict[str, Optional[subprocess.Popen]] = {
     "api_server": None,
-    "autologin": None
+    "autologin": None,
+    "tor": None
 }
 
 # Lista de clientes WebSocket conectados
@@ -223,6 +224,35 @@ async def start_process(
                 else:
                     workers_count = workers if workers and workers > 0 else 10
                     command.extend(["--workers", str(workers_count)])
+                    
+            elif process_name == "tor":
+                # Buscar tor.exe en diferentes ubicaciones posibles
+                tor_paths = [
+                    "tor-bundle/tor.exe",
+                    "tor-bundle/Tor/tor.exe", 
+                    "C:/Program Files/Tor Browser/Browser/TorBrowser/Tor/tor.exe",
+                    "C:/Program Files (x86)/Tor Browser/Browser/TorBrowser/Tor/tor.exe",
+                    "tor.exe"  # Si está en PATH
+                ]
+                
+                tor_exe = None
+                for path in tor_paths:
+                    if Path(path).exists():
+                        tor_exe = path
+                        break
+                
+                if not tor_exe:
+                    # Intentar descargar TOR automáticamente
+                    try:
+                        await download_tor_bundle()
+                        tor_exe = "tor-bundle/Tor/tor.exe"
+                    except Exception as e:
+                        raise HTTPException(
+                            status_code=400, 
+                            detail=f"TOR no encontrado. Descarga Tor Browser o coloca tor.exe en tor-bundle/. Error: {e}"
+                        )
+                
+                command = [tor_exe]
             else:
                 raise HTTPException(status_code=400, detail=f"Proceso no válido: {process_name}")
             
@@ -260,6 +290,8 @@ async def start_process(
                     config_info = " (modo secuencial)"
                 else:
                     config_info = f" (workers: {workers or 10})"
+            elif process_name == "tor":
+                config_info = " (SOCKS: 9050, Control: 9051)"
             
             return {
                 "status": "success",
@@ -512,10 +544,70 @@ async def test_tor_connection():
     
     except Exception as e:
         return {
-            "status": "error",
+            "status": "error", 
             "tor_working": False,
             "message": f"Error probando TOR: {str(e)}"
         }
+
+
+async def download_tor_bundle():
+    """Descarga automáticamente Tor Expert Bundle"""
+    import zipfile
+    import requests
+    
+    try:
+        # URL del Tor Expert Bundle para Windows
+        tor_url = "https://archive.torproject.org/tor-package-archive/torbrowser/13.5.6/tor-expert-bundle-windows-x86_64-13.5.6.tar.gz"
+        
+        bundle_path = Path("tor-bundle")
+        bundle_path.mkdir(exist_ok=True)
+        
+        tar_file = bundle_path / "tor-bundle.tar.gz"
+        
+        # Descargar el archivo
+        print("[MANAGER] Descargando Tor Expert Bundle...")
+        response = requests.get(tor_url, stream=True)
+        response.raise_for_status()
+        
+        with open(tar_file, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        
+        # Extraer el archivo usando tarfile
+        import tarfile
+        with tarfile.open(tar_file, 'r:gz') as tar:
+            tar.extractall(bundle_path)
+        
+        # Limpiar archivo temporal
+        tar_file.unlink()
+        
+        print("[MANAGER] Tor Expert Bundle descargado y extraído exitosamente")
+        return True
+        
+    except Exception as e:
+        print(f"[MANAGER] Error descargando TOR: {e}")
+        return False
+
+
+@app.post("/download/tor")
+async def download_tor():
+    """Descarga Tor Expert Bundle automáticamente"""
+    try:
+        success = await download_tor_bundle()
+        if success:
+            await websocket_manager.broadcast("[MANAGER] ✅ Tor Expert Bundle descargado exitosamente")
+            return {
+                "status": "success",
+                "message": "Tor Expert Bundle descargado y listo para usar"
+            }
+        else:
+            return {
+                "status": "error", 
+                "message": "Error descargando Tor Expert Bundle"
+            }
+    except Exception as e:
+        await websocket_manager.broadcast(f"[MANAGER] ❌ Error descargando TOR: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error descargando TOR: {str(e)}")
 
 
 @app.post("/files/data.json/clear")

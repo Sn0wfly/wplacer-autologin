@@ -34,7 +34,7 @@
 
         .main-content {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 30px;
             margin-bottom: 30px;
         }
@@ -478,6 +478,36 @@
         </div>
 
         <div class="main-content">
+            <!-- TOR Process -->
+            <div class="process-card">
+                <div class="process-title">
+                    <div id="tor-status" class="status-indicator status-stopped"></div>
+                    TOR Network
+                </div>
+
+                <div class="config-section">
+                    <div class="config-title">🔒 Red de Anonimato</div>
+                    <div class="config-row">
+                        <span class="config-label">SOCKS Puerto:</span>
+                        <span style="color: #00ff41; font-family: monospace;">9050</span>
+                    </div>
+                    <div class="config-row">
+                        <span class="config-label">Control Puerto:</span>
+                        <span style="color: #00ff41; font-family: monospace;">9051</span>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button id="start-tor" class="btn btn-start">🔒 Iniciar TOR</button>
+                    <button id="stop-tor" class="btn btn-stop">⏹️ Detener TOR</button>
+                    <button id="download-tor" class="btn btn-file">📥 Descargar TOR</button>
+                </div>
+                
+                <div style="font-size: 11px; color: #aaa; margin-top: 10px;">
+                    Red Tor para navegación anónima y proxies SOCKS
+                </div>
+            </div>
+
             <!-- API Server -->
             <div class="process-card">
                 <div class="process-title">
@@ -658,6 +688,7 @@
         // Elementos DOM
         const elements = {
             // Indicadores de estado
+            torStatus: document.getElementById('tor-status'),
             apiStatus: document.getElementById('api-status'),
             autologinStatus: document.getElementById('autologin-status'),
             wsIndicator: document.getElementById('ws-indicator'),
@@ -665,6 +696,9 @@
             lastUpdate: document.getElementById('last-update'),
             
             // Botones
+            startTor: document.getElementById('start-tor'),
+            stopTor: document.getElementById('stop-tor'),
+            downloadTor: document.getElementById('download-tor'),
             startApi: document.getElementById('start-api'),
             stopApi: document.getElementById('stop-api'),
             startAutologin: document.getElementById('start-autologin'),
@@ -891,7 +925,14 @@
         }
 
         function updateProcessStatus(processName, status) {
-            const statusElement = processName === 'api_server' ? elements.apiStatus : elements.autologinStatus;
+            let statusElement;
+            if (processName === 'tor') {
+                statusElement = elements.torStatus;
+            } else if (processName === 'api_server') {
+                statusElement = elements.apiStatus;
+            } else {
+                statusElement = elements.autologinStatus;
+            }
             
             if (statusElement) {
                 statusElement.classList.remove('status-running', 'status-stopped');
@@ -900,9 +941,14 @@
         }
 
         function setButtonsLoading(processName, isLoading) {
-            const buttons = processName === 'api_server' 
-                ? [elements.startApi, elements.stopApi]
-                : [elements.startAutologin, elements.stopAutologin];
+            let buttons;
+            if (processName === 'tor') {
+                buttons = [elements.startTor, elements.stopTor];
+            } else if (processName === 'api_server') {
+                buttons = [elements.startApi, elements.stopApi];
+            } else {
+                buttons = [elements.startAutologin, elements.stopAutologin];
+            }
             
             buttons.forEach(btn => {
                 if (btn) {
@@ -981,6 +1027,7 @@
                 const response = await fetch('/status');
                 const data = await response.json();
                 
+                updateProcessStatus('tor', data.processes.tor);
                 updateProcessStatus('api_server', data.processes.api_server);
                 updateProcessStatus('autologin', data.processes.autologin);
                 
@@ -1085,7 +1132,43 @@
             }
         }
 
+        // Función para descargar TOR
+        async function downloadTor() {
+            const button = elements.downloadTor;
+            const originalText = button.textContent;
+            button.textContent = '📥 Descargando...';
+            button.disabled = true;
+            
+            try {
+                addLogEntry('📥 Descargando Tor Expert Bundle...', 'manager');
+                
+                const response = await fetch('/download/tor', { method: 'POST' });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addLogEntry(`✅ ${data.message}`, 'manager');
+                    addLogEntry('💡 Ahora puedes usar el botón "🔒 Iniciar TOR"', 'manager');
+                } else {
+                    addLogEntry(`❌ Error: ${data.detail}`, 'manager');
+                }
+            } catch (error) {
+                addLogEntry(`❌ Error descargando TOR: ${error.message}`, 'manager');
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+
         // Event Listeners
+        if (elements.startTor) {
+            elements.startTor.addEventListener('click', () => startProcess('tor'));
+        }
+        if (elements.stopTor) {
+            elements.stopTor.addEventListener('click', () => stopProcess('tor'));
+        }
+        if (elements.downloadTor) {
+            elements.downloadTor.addEventListener('click', downloadTor);
+        }
         if (elements.startApi) {
             elements.startApi.addEventListener('click', () => startProcess('api_server'));
         }
