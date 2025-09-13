@@ -9,3 +9,4 @@ stem
 fastapi
 uvicorn
 loguru
+jinja2

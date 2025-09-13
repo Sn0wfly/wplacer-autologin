@@ -106,7 +106,37 @@ python autologin.py --sequential
 - **10 workers**: For faster processing if you have many proxies and good hardware
 - **3 workers**: Conservative setting for limited resources
 
+## Panel de Control Web (NUEVO)
+
+### Manager.py - Control desde el Navegador
+Ahora puedes controlar todo el sistema desde una interfaz web moderna:
+
+```bash
+python manager.py
+```
+
+Abre tu navegador en: `http://localhost:8000`
+
+### Funcionalidades del Panel Web
+- **Control Visual**: Inicia y detiene procesos con botones
+- **Logs en Tiempo Real**: Monitorea la salida de ambos scripts simultáneamente
+- **Estado en Vivo**: Indicadores visuales del estado de cada proceso
+- **Configuración de Workers**: Ajusta el número de workers para autologin
+- **Interfaz Responsiva**: Funciona en desktop y móvil
+
+### Estructura de Archivos Actualizada
+```
+/
+├── manager.py          (NUEVO - Panel de control web)
+├── api_server.py       (Servidor de captchas)
+├── autologin.py        (Procesador de cuentas)
+├── requirements.txt    (Actualizado con FastAPI, Jinja2)
+└── templates/
+    └── index.html      (NUEVO - Interfaz web)
+```
+
 ## Notes
 - Keep `data.json` private because it contains account information.
 - Concurrent processing requires sufficient proxies (at least as many as workers).
 - Monitor system resources when using high worker counts.
+- **NUEVO**: Usa el panel web (`manager.py`) para control centralizado y monitoreo en tiempo real.
