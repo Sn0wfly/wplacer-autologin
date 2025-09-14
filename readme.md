@@ -7,12 +7,12 @@
 3. **Create your files**:
    ```bash
    # Create emails.txt with your accounts
-   echo "email1@example.com|password1" > emails.txt
-   echo "email2@example.com|password2" >> emails.txt
+   email1@example.com|password1
+   email2@example.com|password2
    
    # Create proxies.txt with your proxies
-   echo "127.0.0.1:3128" > proxies.txt
-   echo "203.0.113.10:8080" >> proxies.txt
+   "127.0.0.1:3128"
+   "203.0.113.10:8080"
    ```
 4. **Start the API**: `python api_server.py`
 5. **Run autologin**: `python autologin.py`
