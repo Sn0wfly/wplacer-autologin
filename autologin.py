@@ -142,29 +142,65 @@ def login_once_sync(email, password):
     except Exception as e:
         raise RuntimeError(f"Failed to get Google login URL via proxy {proxy_http}: {e}")
 
-    # Step 3: Open Google login in Camoufox using TOR (SOCKS5)
-    tor_proxy = {"server": f"socks5://{SOCKS_HOST}:{SOCKS_PORT}"}
+    # Step 3: Open Google login in Camoufox (with optional TOR)
     custom_fonts = ["Arial", "Helvetica", "Times New Roman"]
-    with Camoufox(headless=True, humanize=True, block_images=True, disable_coop=True, screen=Screen(max_width=200, max_height=400), proxy=tor_proxy, fonts=custom_fonts, os=["windows", "macos", "linux"], geoip=True, i_know_what_im_doing=True) as browser:
-        page = browser.new_page()
-        page.set_default_timeout(60000)
-        page.goto(google_login_url, wait_until="domcontentloaded")
+    
+    # Check if TOR is available, if not use direct connection
+    try:
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((SOCKS_HOST, SOCKS_PORT))
+        sock.close()
+        use_tor = result == 0
+    except:
+        use_tor = False
+    
+    if use_tor:
+        tor_proxy = {"server": f"socks5://{SOCKS_HOST}:{SOCKS_PORT}"}
+        print(f"[INFO] Using TOR proxy: {SOCKS_HOST}:{SOCKS_PORT}")
+        with Camoufox(headless=True, humanize=True, block_images=False, disable_coop=False, screen=Screen(max_width=1920, max_height=1080), proxy=tor_proxy, fonts=custom_fonts, os=["windows"], geoip=False, i_know_what_im_doing=True) as browser:
+            page = browser.new_page()
+            page.set_default_timeout(60000)
+            page.goto(google_login_url, wait_until="domcontentloaded")
 
-        # Step 4: Handle Google login frame
-        fr = find_login_frame_sync(page, 'input[type="email"]', timeout_s=30)
-        fr.fill('input[type="email"]', email)
-        fr.locator('#identifierNext').click()
-        t0 = time.time()
-        while time.time() - t0 < 3:
-            fr = find_login_frame_sync(page, 'input[type="password"]', timeout_s=30)
-        fr.fill('input[type="password"]', password)
-        fr.locator('#passwordNext').click()
+            # Step 4: Handle Google login frame
+            fr = find_login_frame_sync(page, 'input[type="email"]', timeout_s=30)
+            fr.fill('input[type="email"]', email)
+            fr.locator('#identifierNext').click()
+            t0 = time.time()
+            while time.time() - t0 < 3:
+                fr = find_login_frame_sync(page, 'input[type="password"]', timeout_s=30)
+            fr.fill('input[type="password"]', password)
+            fr.locator('#passwordNext').click()
 
-        # Step 5: Click consent if needed
-        click_consent_xpath_sync(page, timeout_s=20)
+            # Step 5: Click consent if needed
+            click_consent_xpath_sync(page, timeout_s=20)
 
-        # Step 6: Return "j" cookie
-        return poll_cookie_any_context_sync(browser, name="j", timeout_s=180)
+            # Step 6: Return "j" cookie
+            return poll_cookie_any_context_sync(browser, name="j", timeout_s=180)
+    else:
+        print(f"[INFO] TOR not available, using direct connection")
+        with Camoufox(headless=True, humanize=True, block_images=False, disable_coop=False, screen=Screen(max_width=1920, max_height=1080), fonts=custom_fonts, os=["windows"], geoip=False, i_know_what_im_doing=True) as browser:
+            page = browser.new_page()
+            page.set_default_timeout(60000)
+            page.goto(google_login_url, wait_until="domcontentloaded")
+
+            # Step 4: Handle Google login frame
+            fr = find_login_frame_sync(page, 'input[type="email"]', timeout_s=30)
+            fr.fill('input[type="email"]', email)
+            fr.locator('#identifierNext').click()
+            t0 = time.time()
+            while time.time() - t0 < 3:
+                fr = find_login_frame_sync(page, 'input[type="password"]', timeout_s=30)
+            fr.fill('input[type="password"]', password)
+            fr.locator('#passwordNext').click()
+
+            # Step 5: Click consent if needed
+            click_consent_xpath_sync(page, timeout_s=20)
+
+            # Step 6: Return "j" cookie
+            return poll_cookie_any_context_sync(browser, name="j", timeout_s=180)
 
 async def login_once(email, password):
     """Async wrapper for login_once_sync to run in thread pool"""
@@ -266,9 +302,15 @@ async def process_account(state, idx, thread_id=None):
         
     finally:
         save_state(state)
-        # Each thread gets its own TOR circuit
+        # Each thread gets its own TOR circuit (only if TOR is available)
         try:
-            tor_newnym_cookie()
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex((CTRL_HOST, CTRL_PORT))
+            sock.close()
+            if result == 0:
+                tor_newnym_cookie()
         except Exception as e:
             print(f"{thread_prefix} [WARN] TOR newnym failed: {e}")
         time.sleep(2)  # Reduced sleep for faster processing

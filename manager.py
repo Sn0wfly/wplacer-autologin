@@ -9,6 +9,7 @@ import threading
 import time
 import json
 import pathlib
+import sys
 from typing import Dict, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.responses import HTMLResponse
