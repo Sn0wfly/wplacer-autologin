@@ -288,7 +288,7 @@ async def process_account(state, idx, thread_id=None):
             acc["last_error"] = ""
             acc["result"] = {"domain": c.get("domain", ""), "value": c.get("value", "")}
         
-        print(f"{thread_prefix} [SUCCESS] {acc['email']} - Token obtenido")
+        print(f"{thread_prefix} [SUCCESS] {acc['email']} - Token obtained")
         
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
