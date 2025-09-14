@@ -7,7 +7,48 @@
     "ctrl_port": 9051
   },
   "cursor": {
-    "next_index": 0
+    "next_index": 5
   },
-  "accounts": []
+  "accounts": [
+    {
+      "email": "musashimiyamoto.vagabond@gmail.com",
+      "password": "Sekigahara133",
+      "status": "error",
+      "tries": 1,
+      "last_error": "InvalidIP: Failed to get IP address",
+      "result": null
+    },
+    {
+      "email": "esniferr.rs@gmail.com",
+      "password": "0022658998a",
+      "status": "error",
+      "tries": 1,
+      "last_error": "InvalidIP: Failed to get IP address",
+      "result": null
+    },
+    {
+      "email": "esniferrr.rs@gmail.com",
+      "password": "0022658998a",
+      "status": "error",
+      "tries": 1,
+      "last_error": "Error: It looks like you are using Playwright Sync API inside the asyncio loop.\nPlease use the Async API instead.",
+      "result": null
+    },
+    {
+      "email": "mattmnigro@gmail.com",
+      "password": "MBCEBS!6r32%",
+      "status": "error",
+      "tries": 1,
+      "last_error": "Error: It looks like you are using Playwright Sync API inside the asyncio loop.\nPlease use the Async API instead.",
+      "result": null
+    },
+    {
+      "email": "hihtfwtt@gmail.com",
+      "password": "gc#Gt6rHbsMx",
+      "status": "error",
+      "tries": 1,
+      "last_error": "Error: It looks like you are using Playwright Sync API inside the asyncio loop.\nPlease use the Async API instead.",
+      "result": null
+    }
+  ]
 }

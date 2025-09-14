@@ -6,3 +6,9 @@
 # example3@gmail.com|password789
 
 # Add your email accounts here, one per line
+
+musashimiyamoto.vagabond@gmail.com|Sekigahara133
+esniferr.rs@gmail.com|0022658998a
+esniferrr.rs@gmail.com|0022658998a
+mattmnigro@gmail.com|MBCEBS!6r32%
+hihtfwtt@gmail.com|gc#Gt6rHbsMx
