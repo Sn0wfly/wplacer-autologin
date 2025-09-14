@@ -1,5 +1,7 @@
 from camoufox.sync_api import Camoufox
 from playwright.sync_api import TimeoutError as PWTimeout
+import asyncio
+import concurrent.futures
 from browserforge.fingerprints import Screen
 from stem import Signal
 from stem.control import Controller
@@ -52,14 +54,14 @@ def get_next_proxy():
         return next(proxy_pool)
 
 # ===================== GOOGLE LOGIN HELPERS =====================
-def exists(fr_or_pg, sel, t=500):
+def exists_sync(fr_or_pg, sel, t=500):
     try:
         fr_or_pg.locator(sel).first.wait_for(state="visible", timeout=t)
         return True
     except PWTimeout:
         return False
 
-def find_login_frame(pg, _type, timeout_s=30):
+def find_login_frame_sync(pg, _type, timeout_s=30):
     t0 = time.time()
     err = False
     while time.time() - t0 < timeout_s and not err:
@@ -77,7 +79,7 @@ def find_login_frame(pg, _type, timeout_s=30):
         raise TimeoutError("Captcha shown")
     raise TimeoutError("Google login frame not found")
 
-def click_consent_xpath(gpage, timeout_s=20):
+def click_consent_xpath_sync(gpage, timeout_s=20):
     t0 = time.time()
     while time.time() - t0 < timeout_s:
         try:
@@ -90,7 +92,7 @@ def click_consent_xpath(gpage, timeout_s=20):
         time.sleep(0.25)
     return False
 
-def poll_cookie_any_context(browser, name="j", timeout_s=180):
+def poll_cookie_any_context_sync(browser, name="j", timeout_s=180):
     t0 = time.time()
     while time.time() - t0 < timeout_s:
         try:
@@ -126,7 +128,7 @@ def get_solved_token(api_url="http://localhost:8080/turnstile", target_url="http
         raise RuntimeError(f"Captcha solver failed: {e}")
 
 # ===================== LOGIN =====================
-def login_once(email, password):
+def login_once_sync(email, password):
     # Step 1: Solve captcha and get token (uses proxies from proxies.txt)
     token = get_solved_token()
     backend_url = f"https://backend.wplace.live/auth/google?token={token}"
@@ -149,20 +151,26 @@ def login_once(email, password):
         page.goto(google_login_url, wait_until="domcontentloaded")
 
         # Step 4: Handle Google login frame
-        fr = find_login_frame(page, 'input[type="email"]', timeout_s=30)
+        fr = find_login_frame_sync(page, 'input[type="email"]', timeout_s=30)
         fr.fill('input[type="email"]', email)
         fr.locator('#identifierNext').click()
         t0 = time.time()
         while time.time() - t0 < 3:
-            fr = find_login_frame(page, 'input[type="password"]', timeout_s=30)
+            fr = find_login_frame_sync(page, 'input[type="password"]', timeout_s=30)
         fr.fill('input[type="password"]', password)
         fr.locator('#passwordNext').click()
 
         # Step 5: Click consent if needed
-        click_consent_xpath(page, timeout_s=20)
+        click_consent_xpath_sync(page, timeout_s=20)
 
         # Step 6: Return "j" cookie
-        return poll_cookie_any_context(browser, name="j", timeout_s=180)
+        return poll_cookie_any_context_sync(browser, name="j", timeout_s=180)
+
+async def login_once(email, password):
+    """Async wrapper for login_once_sync to run in thread pool"""
+    loop = asyncio.get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        return await loop.run_in_executor(executor, login_once_sync, email, password)
 
 # ===================== EMAIL & STATE HANDLING =====================
 def parse_emails_file(path=EMAILS_FILE):
@@ -210,7 +218,7 @@ def tor_newnym_cookie(host=CTRL_HOST, port=CTRL_PORT):
             time.sleep(c.get_newnym_wait())
         c.signal(Signal.NEWNYM)
 # ===================== ACCOUNT PROCESSING =====================
-def process_account(state, idx, thread_id=None):
+async def process_account(state, idx, thread_id=None):
     """Process a single account - thread-safe version"""
     thread_prefix = f"[T{thread_id}]" if thread_id else ""
     
@@ -227,7 +235,7 @@ def process_account(state, idx, thread_id=None):
         time.sleep(1.0)  # Simular tiempo de procesamiento
         print(f"{thread_prefix} Getting proxy and connecting...")
         time.sleep(1.0)  # Simular tiempo de conexión
-        c = login_once(acc["email"], acc["password"])
+        c = await login_once(acc["email"], acc["password"])
         if not c:
             raise RuntimeError("cookie_not_found")
         
@@ -276,7 +284,7 @@ def indices_by_status(state, statuses: set[str]) -> list[int]:
     return out
 
 # ===================== MAIN =====================
-def main_concurrent(max_workers=5):
+async def main_concurrent(max_workers=5):
     """Main function with concurrent processing"""
     state = load_state()
 
@@ -293,30 +301,22 @@ def main_concurrent(max_workers=5):
     print(f"[INFO] Processing {len(ordered)} accounts with {max_workers} concurrent workers")
     print(f"[INFO] Progress: 0/{len(ordered)} (0%) - Starting...")
     
-    # Process accounts concurrently
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit all tasks
-        future_to_idx = {}
-        for thread_id, idx in enumerate(ordered):
-            future = executor.submit(process_account, state, idx, thread_id + 1)
-            future_to_idx[future] = idx
-        
-        # Wait for completion and handle results
-        completed = 0
-        for future in as_completed(future_to_idx):
-            idx = future_to_idx[future]
-            completed += 1
-            progress_percent = (completed / len(ordered)) * 100
-            print(f"[INFO] Progress: {completed}/{len(ordered)} ({progress_percent:.1f}%) - Account {idx} completed")
-            try:
-                future.result()  # This will raise any exception that occurred
-                print(f"[INFO] Progress: {completed}/{len(ordered)} completed")
-                # Add small delay to allow WebSocket to send logs progressively
-                time.sleep(0.1)
-            except Exception as e:
-                print(f"[ERROR] Thread processing account {idx} failed: {e}")
-                # Add small delay for error logs too
-                time.sleep(0.1)
+    # Process accounts concurrently using asyncio
+    tasks = []
+    for thread_id, idx in enumerate(ordered):
+        task = asyncio.create_task(process_account(state, idx, thread_id + 1))
+        tasks.append((task, idx))
+    
+    # Wait for completion and handle results
+    completed = 0
+    for task, idx in tasks:
+        await task
+        completed += 1
+        progress_percent = (completed / len(ordered)) * 100
+        print(f"[INFO] Progress: {completed}/{len(ordered)} ({progress_percent:.1f}%) - Account {idx} completed")
+        print(f"[INFO] Progress: {completed}/{len(ordered)} completed")
+        # Add small delay to allow WebSocket to send logs progressively
+        await asyncio.sleep(0.1)
 
     # Final state save and cursor update
     with state_lock:
@@ -324,7 +324,7 @@ def main_concurrent(max_workers=5):
     save_state(state)
     print("[DONE] All accounts processed")
 
-def main():
+async def main():
     """Sequential processing (original behavior)"""
     state = load_state()
 
@@ -339,7 +339,7 @@ def main():
         return
 
     for idx in ordered:
-        process_account(state, idx)
+        await process_account(state, idx)
 
     # Final state save and cursor update
     state["cursor"]["next_index"] = len(state["accounts"])
@@ -360,9 +360,9 @@ if __name__ == "__main__":
     try:
         if args.sequential:
             print("[INFO] Using sequential processing")
-            main()
+            asyncio.run(main())
         else:
             print(f"[INFO] Using concurrent processing with {args.workers} workers")
-            main_concurrent(max_workers=args.workers)
+            asyncio.run(main_concurrent(max_workers=args.workers))
     except KeyboardInterrupt:
         print("\n[INTERRUPTED]")
