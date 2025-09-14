@@ -89,9 +89,11 @@ async def start_process(process_name: str, workers: Optional[int] = None, sequen
     
     try:
         if process_name == "api_server":
-            command = ["python", "api_server.py"]
+            # Añadimos "-u" para deshabilitar el buffer de salida
+            command = ["python", "-u", "api_server.py"]
         elif process_name == "autologin":
-            command = ["python", "autologin.py"]
+            # Añadimos "-u" aquí también
+            command = ["python", "-u", "autologin.py"]
             if sequential:
                 command.append("--sequential")
             else:
