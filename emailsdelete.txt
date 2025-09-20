@@ -1,0 +1,9 @@
+# Accounts to DELETE - Format: email|password
+# WARNING: These accounts will be PERMANENTLY DELETED from wplace.live!
+# 
+# Example format:
+# test1@gmail.com|password123
+# test2@gmail.com|mypassword
+# 
+# IMPORTANT: Make sure these are accounts you want to DELETE FOREVER!
+#

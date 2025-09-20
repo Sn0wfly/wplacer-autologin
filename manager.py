@@ -25,7 +25,8 @@ templates = Jinja2Templates(directory="templates")
 processes: Dict[str, Optional[subprocess.Popen]] = {
     "api_server": None,
     "autologin": None,
-    "tor": None
+    "tor": None,
+    "delete_accounts": None
 }
 
 class SimpleWebSocketManager:
@@ -107,6 +108,14 @@ async def start_process(process_name: str, workers: Optional[int] = None, sequen
             else:
                 import os
                 os.environ.pop("AUTO_DELETE_ENABLED", None)
+        elif process_name == "delete_accounts":
+            # Dedicated delete accounts process
+            command = ["python", "-u", "autologin.py", "--delete-accounts"]
+            if sequential:
+                command.append("--sequential")
+            else:
+                workers_count = workers if workers and workers > 0 else 5
+                command.extend(["--workers", str(workers_count)])
         elif process_name == "tor":
             command = ["tor.exe"]  # Simplificado
         else:

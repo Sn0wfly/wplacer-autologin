@@ -17,6 +17,10 @@ POST_URL = "http://127.0.0.1:80/user"
 CTRL_HOST, CTRL_PORT = "127.0.0.1", 9051
 SOCKS_HOST, SOCKS_PORT = "127.0.0.1", 9050
 
+# ===================== DELETE ACCOUNTS CONFIGURATION =====================
+DELETE_EMAILS_FILE = "emailsdelete.txt"
+DELETE_STATE_FILE = "datadelete.json"
+
 # ===================== AUTO-DELETE CONFIGURATION =====================
 # Set to True to enable automatic account deletion after successful login
 AUTO_DELETE_ENABLED = False
@@ -566,6 +570,195 @@ def test_auto_delete_with_cookie(j_cookie_value):
         print(f"[TEST] Auto-delete test failed: {type(e).__name__}: {e}")
         return False
 
+# ===================== DEDICATED DELETE ACCOUNTS SYSTEM =====================
+def parse_delete_emails_file(path=DELETE_EMAILS_FILE):
+    """Parse emailsdelete.txt file for accounts to delete"""
+    p = pathlib.Path(path)
+    if not p.exists():
+        print(f"[DELETE] File not found: {path}")
+        return []
+    
+    pairs = []
+    for ln in p.read_text(encoding="utf-8").splitlines():
+        s = ln.strip()
+        if not s or s.startswith("#") or "|" not in s:
+            continue
+        email, password = s.split("|", 1)
+        pairs.append({"email": email.strip(), "password": password.strip()})
+    
+    print(f"[DELETE] Loaded {len(pairs)} accounts to delete from {path}")
+    return pairs
+
+def load_delete_state():
+    """Load delete accounts state from datadelete.json"""
+    p = pathlib.Path(DELETE_STATE_FILE)
+    if not p.exists():
+        # Create initial state from emailsdelete.txt
+        accounts = parse_delete_emails_file()
+        state = {
+            "accounts": [
+                {
+                    "email": acc["email"],
+                    "password": acc["password"],
+                    "status": "pending",
+                    "tries": 0,
+                    "last_error": "",
+                    "deleted": False
+                }
+                for acc in accounts
+            ],
+            "cursor": {"next_index": 0}
+        }
+        save_delete_state(state)
+        return state
+    
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"[DELETE] Error loading state: {e}")
+        return {"accounts": [], "cursor": {"next_index": 0}}
+
+def save_delete_state(state):
+    """Save delete accounts state to datadelete.json"""
+    try:
+        with open(DELETE_STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"[DELETE] Error saving state: {e}")
+
+async def process_delete_account(state, idx, thread_id=None):
+    """Process a single account for deletion - dedicated delete process"""
+    thread_prefix = f"[DELETE-T{thread_id}]" if thread_id else "[DELETE]"
+    
+    # Thread-safe account access and update
+    with state_lock:
+        acc = state["accounts"][idx]
+        acc["tries"] += 1
+        state["cursor"]["next_index"] = idx
+    
+    save_delete_state(state)
+    
+    try:
+        print(f"{thread_prefix} Processing deletion for {acc['email']}...")
+        time.sleep(1.0)  # Simular tiempo de procesamiento
+        print(f"{thread_prefix} Getting proxy and connecting...")
+        time.sleep(1.0)  # Simular tiempo de conexión
+        
+        # Login to get cookie
+        c = await login_once(acc["email"], acc["password"])
+        if not c:
+            raise RuntimeError("cookie_not_found")
+        
+        print(f"{thread_prefix} Login successful, proceeding with account deletion...")
+        time.sleep(0.5)
+        
+        # Delete account using the cookie
+        delete_success = await auto_delete_account(c.get("value", ""))
+        
+        if delete_success:
+            print(f"{thread_prefix} [SUCCESS] Account {acc['email']} deleted successfully!")
+            # Thread-safe success update
+            with state_lock:
+                acc["status"] = "deleted"
+                acc["last_error"] = ""
+                acc["deleted"] = True
+        else:
+            print(f"{thread_prefix} [FAILED] Account {acc['email']} deletion failed")
+            # Thread-safe failure update
+            with state_lock:
+                acc["status"] = "delete_failed"
+                acc["last_error"] = "Account deletion failed"
+                acc["deleted"] = False
+        
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {e}"
+        
+        # Thread-safe error update
+        with state_lock:
+            acc["status"] = "error" 
+            acc["last_error"] = error_msg
+            acc["deleted"] = False
+        
+        print(f"{thread_prefix} [ERROR] {acc['email']} | {error_msg}")
+        
+    finally:
+        save_delete_state(state)
+        # Each thread gets its own TOR circuit (only if TOR is available)
+        try:
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex((SOCKS_HOST, SOCKS_PORT))
+            sock.close()
+            if result == 0:
+                tor_newnym_cookie()
+        except:
+            pass
+
+def indices_by_status_delete(state, statuses):
+    """Get indices of accounts with specific statuses for delete system"""
+    return [i for i, acc in enumerate(state["accounts"]) if acc["status"] in statuses]
+
+async def main_delete_concurrent(max_workers=5):
+    """Main function for concurrent delete processing"""
+    state = load_delete_state()
+    
+    if not state["accounts"]:
+        print("[DELETE] No accounts to process")
+        return
+    
+    # Queue: all error/failed first, then all pending.
+    q = (indices_by_status_delete(state, {"error", "delete_failed"}) + 
+         indices_by_status_delete(state, {"pending"}))
+    
+    seen = set()
+    ordered = [i for i in q if not (i in seen or seen.add(i))]
+    
+    if not ordered:
+        print("[DELETE] Nothing to process")
+        return
+    
+    print(f"[DELETE] Starting concurrent processing with {max_workers} workers")
+    print(f"[DELETE] Processing {len(ordered)} accounts for deletion")
+    
+    semaphore = asyncio.Semaphore(max_workers)
+    
+    async def process_with_semaphore(idx, thread_id):
+        async with semaphore:
+            await process_delete_account(state, idx, thread_id)
+    
+    tasks = [process_with_semaphore(idx, i+1) for i, idx in enumerate(ordered)]
+    
+    await asyncio.gather(*tasks)
+    
+    # Final state save and cursor update
+    state["cursor"]["next_index"] = len(state["accounts"])
+    save_delete_state(state)
+    print("[DELETE] All accounts processed for deletion")
+
+async def main_delete_sequential():
+    """Sequential processing for delete accounts"""
+    state = load_delete_state()
+    
+    # Queue: all error/failed first, then all pending.
+    q = (indices_by_status_delete(state, {"error", "delete_failed"}) + 
+         indices_by_status_delete(state, {"pending"}))
+    
+    seen = set()
+    ordered = [i for i in q if not (i in seen or seen.add(i))]
+    
+    if not ordered:
+        print("[DELETE] Nothing to process")
+        return
+    
+    for idx in ordered:
+        await process_delete_account(state, idx)
+    
+    # Final state save and cursor update
+    state["cursor"]["next_index"] = len(state["accounts"])
+    save_delete_state(state)
+    print("[DELETE] Sequential delete processing completed")
+
 # ===================== EMAIL & STATE HANDLING =====================
 def parse_emails_file(path=EMAILS_FILE):
     p = pathlib.Path(path)
@@ -771,15 +964,27 @@ if __name__ == "__main__":
                        help="Number of concurrent workers (default: 5)")
     parser.add_argument("--sequential", action="store_true", 
                        help="Use sequential processing instead of concurrent")
+    parser.add_argument("--delete-accounts", action="store_true", 
+                       help="Run dedicated delete accounts process using emailsdelete.txt")
     
     args = parser.parse_args()
     
     try:
-        if args.sequential:
-            print("[INFO] Using sequential processing")
-            asyncio.run(main())
+        if args.delete_accounts:
+            # Dedicated delete accounts mode
+            if args.sequential:
+                print("[DELETE] Using sequential delete processing")
+                asyncio.run(main_delete_sequential())
+            else:
+                print(f"[DELETE] Using concurrent delete processing with {args.workers} workers")
+                asyncio.run(main_delete_concurrent(max_workers=args.workers))
         else:
-            print(f"[INFO] Using concurrent processing with {args.workers} workers")
-            asyncio.run(main_concurrent(max_workers=args.workers))
+            # Normal autologin mode
+            if args.sequential:
+                print("[INFO] Using sequential processing")
+                asyncio.run(main())
+            else:
+                print(f"[INFO] Using concurrent processing with {args.workers} workers")
+                asyncio.run(main_concurrent(max_workers=args.workers))
     except KeyboardInterrupt:
         print("\n[INTERRUPTED]")

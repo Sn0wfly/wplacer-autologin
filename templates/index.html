@@ -782,6 +782,53 @@
                     Procesamiento de cuentas con TOR y proxies
                 </div>
             </div>
+
+            <!-- Delete Accounts -->
+            <div class="process-card">
+                <div class="process-title">
+                    <div id="delete-accounts-status" class="status-indicator status-stopped"></div>
+                    🗑️ Delete Accounts
+                </div>
+
+                <!-- Configuración de Workers para Delete -->
+                <div class="config-section">
+                    <div class="config-title">🔧 Delete Processing Configuration</div>
+                    <div class="config-row">
+                        <label class="checkbox-container">
+                            <input id="delete-sequential-mode" type="checkbox" class="checkbox">
+                            <span class="config-label">Sequential Mode</span>
+                        </label>
+                    </div>
+                    <div class="config-row">
+                        <span class="config-label">Workers:</span>
+                        <input id="delete-workers-count" type="number" class="config-input config-input-small" value="5" min="1" max="10">
+                    </div>
+                </div>
+
+                <!-- File Status for Delete -->
+                <div class="config-section">
+                    <div class="config-title collapsible" onclick="toggleCollapse('delete-files-config')">📁 Delete Files Status</div>
+                    <div id="delete-files-config" class="collapsible-content">
+                        <div class="config-row">
+                            <span class="config-label">emailsdelete.txt:</span>
+                            <span id="emailsdelete-info" class="file-info">Loading...</span>
+                        </div>
+                        <div class="config-row">
+                            <span class="config-label">datadelete.json:</span>
+                            <span id="datadelete-info" class="file-info">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button id="start-delete-accounts" class="btn btn-start" style="background-color: #ff4757;">🗑️ Start Delete Accounts</button>
+                    <button id="stop-delete-accounts" class="btn btn-stop">⏹️ Stop Delete</button>
+                </div>
+
+                <div style="font-size: 11px; color: #ff6b6b; margin-top: 10px;">
+                    ⚠️ WARNING: This will PERMANENTLY DELETE accounts from emailsdelete.txt!
+                </div>
+            </div>
         </div>
 
         <!-- Sección de Logs con Pestañas -->
@@ -795,6 +842,7 @@
                 <button class="tab active" onclick="switchTab('manager')">🖥️ Manager</button>
                 <button class="tab" onclick="switchTab('api-server')">🔧 API Server</button>
                 <button class="tab" onclick="switchTab('autologin')">🔄 Autologin</button>
+                <button class="tab" onclick="switchTab('delete-accounts')">🗑️ Delete Accounts</button>
                 <button class="tab" onclick="switchTab('all')">📋 All</button>
             </div>
 
@@ -813,6 +861,12 @@
             <div id="logs-autologin" class="log-content">
                 <div class="logs-container" data-type="autologin">
                     <div class="log-entry log-autologin">[AUTOLOGIN] Waiting for logs...</div>
+                </div>
+            </div>
+
+            <div id="logs-delete-accounts" class="log-content">
+                <div class="logs-container" data-type="delete-accounts">
+                    <div class="log-entry log-delete">[DELETE] Waiting for logs...</div>
                 </div>
             </div>
 
@@ -861,6 +915,8 @@
             stopApi: document.getElementById('stop-api'),
             startAutologin: document.getElementById('start-autologin'),
             stopAutologin: document.getElementById('stop-autologin'),
+            startDeleteAccounts: document.getElementById('start-delete-accounts'),
+            stopDeleteAccounts: document.getElementById('stop-delete-accounts'),
             clearAllLogs: document.getElementById('clear-all-logs'),
             
             // Configuraciones API
@@ -880,10 +936,16 @@
             autoDeleteEnabled: document.getElementById('auto-delete-enabled'),
             postUrl: document.getElementById('post-url'),
             
+            // Delete Accounts Configuration
+            deleteSequentialMode: document.getElementById('delete-sequential-mode'),
+            deleteWorkersCount: document.getElementById('delete-workers-count'),
+            deleteAccountsStatus: document.getElementById('delete-accounts-status'),
+            
             // Contenedores de logs
             logsManager: document.querySelector('[data-type="manager"]'),
             logsApiServer: document.querySelector('[data-type="api-server"]'),
             logsAutologin: document.querySelector('[data-type="autologin"]'),
+            logsDeleteAccounts: document.querySelector('[data-type="delete-accounts"]'),
             logsAll: document.querySelector('[data-type="all"]')
         };
 
@@ -1016,6 +1078,8 @@
                 specificContainer = elements.logsApiServer;
             } else if (type === 'autologin') {
                 specificContainer = elements.logsAutologin;
+            } else if (type === 'delete_accounts' || type === 'delete-accounts') {
+                specificContainer = elements.logsDeleteAccounts;
             }
             
             if (specificContainer) {
@@ -1089,6 +1153,8 @@
                 statusElement = elements.torStatus;
             } else if (processName === 'api_server') {
                 statusElement = elements.apiStatus;
+            } else if (processName === 'delete_accounts') {
+                statusElement = elements.deleteAccountsStatus;
             } else {
                 statusElement = elements.autologinStatus;
             }
@@ -1109,6 +1175,8 @@
                 buttons = [elements.startTor, elements.stopTor];
             } else if (processName === 'api_server') {
                 buttons = [elements.startApi, elements.stopApi];
+            } else if (processName === 'delete_accounts') {
+                buttons = [elements.startDeleteAccounts, elements.stopDeleteAccounts];
             } else {
                 buttons = [elements.startAutologin, elements.stopAutologin];
             }
@@ -1145,6 +1213,12 @@
                         params.append('auto_delete', 'true');
                         addLogEntry('🚨 AUTO-DELETE ENABLED: Accounts will be deleted after login!', 'manager');
                     }
+                } else if (processName === 'delete_accounts') {
+                    params.append('sequential', elements.deleteSequentialMode.checked);
+                    if (!elements.deleteSequentialMode.checked) {
+                        params.append('workers', elements.deleteWorkersCount.value);
+                    }
+                    addLogEntry('🗑️ DELETE ACCOUNTS MODE: Processing emailsdelete.txt', 'manager');
                 }
                 
                 if (params.toString()) {
@@ -1198,6 +1272,7 @@
                 updateProcessStatus('tor', data.processes.tor);
                 updateProcessStatus('api_server', data.processes.api_server);
                 updateProcessStatus('autologin', data.processes.autologin);
+                updateProcessStatus('delete_accounts', data.processes.delete_accounts);
                 
                 // Actualizar información de archivos
                 updateFileInfo('emails.txt');
@@ -1269,6 +1344,8 @@
                     let logType = 'manager';
                     if (message.includes('[API_SERVER]')) {
                         logType = 'api_server';
+                    } else if (message.includes('[DELETE]')) {
+                        logType = 'delete_accounts';
                     } else if (message.includes('[AUTOLOGIN]')) {
                         logType = 'autologin';
                     }
@@ -1392,6 +1469,12 @@
         }
         if (elements.stopAutologin) {
             elements.stopAutologin.addEventListener('click', () => stopProcess('autologin'));
+        }
+        if (elements.startDeleteAccounts) {
+            elements.startDeleteAccounts.addEventListener('click', () => startProcess('delete_accounts'));
+        }
+        if (elements.stopDeleteAccounts) {
+            elements.stopDeleteAccounts.addEventListener('click', () => stopProcess('delete_accounts'));
         }
         if (elements.clearAllLogs) {
             elements.clearAllLogs.addEventListener('click', () => {
