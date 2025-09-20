@@ -456,44 +456,50 @@ def _perform_account_deletion(browser, j_cookie_value):
             page.screenshot(path="debug_03_after_settings_click.png")
             print("[AUTO-DELETE] DEBUG: Screenshot saved - debug_03_after_settings_click.png")
         
-        # Step 7: Look for final delete confirmation (ENHANCED FOR WPLACE.LIVE)
+        # Step 7: Look for final delete confirmation (EXACT MATCH FROM CONFIRMATION MODAL)
         delete_selectors = [
-            # Likely confirmation buttons (common patterns)
+            # EXACT MATCH - Final confirmation modal button!
+            "button.btn.btn-error:has-text('Delete Account')",
+            ".modal-box button.btn.btn-error:has-text('Delete Account')",
+            
+            # Alternative exact matches for confirmation modal
+            "button.btn-error:has-text('Delete Account')",
+            ".modal-box button.btn-error",
+            
+            # Text-based (most reliable for final confirmation)
+            "text=Delete Account",
+            "button:has-text('Delete Account')",
+            
+            # Context-aware (confirmation modal with "Are you absolutely sure?")
+            ".modal-box:has-text('Are you absolutely sure?') button.btn-error",
+            ".modal-box:has-text('This will permanently delete') button.btn-error",
+            
+            # Generic confirmation patterns
             "button.btn-error:has-text('Delete')",
             "button.btn-error:has-text('Confirm')",
             "button.btn-error:has-text('Yes')",
-            "button.btn-primary:has-text('Delete')",
-            "button.btn-primary:has-text('Confirm')",
             
-            # Text-based (most reliable)
-            "text=Delete",
-            "text=Confirm",
-            "text=Yes, delete",
-            "text=Yes",
-            "text=Remove",
-            "text=Confirm Delete",
-            "text=Delete Account",
-            
-            # Class-based
-            "button[class*='delete']",
-            "button[class*='confirm']",
+            # Class-based fallbacks
+            "button.btn-error",
             "button[class*='btn-error']",
-            "button[class*='btn-primary']",
             "button[class*='danger']",
             "button[class*='red']",
             
             # Modal confirmation patterns
             ".modal-box button.btn-error",
-            ".modal-box button.btn-primary",
             "[role='dialog'] button.btn-error",
-            "[role='dialog'] button.btn-primary",
+            
+            # Text fallbacks
+            "text=Delete",
+            "text=Confirm",
+            "text=Yes",
+            "text=Remove",
             
             # Generic patterns
             "[data-testid*='delete']",
             "[data-testid*='confirm']",
             ".delete-confirm",
-            ".confirm-delete",
-            ".confirmation-button"
+            ".confirm-delete"
         ]
         
         delete_button = None
