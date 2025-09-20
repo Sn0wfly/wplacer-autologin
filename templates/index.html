@@ -182,6 +182,57 @@
             height: 16px;
         }
 
+        /* Toggle Switch Styles */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            margin-right: 10px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #555;
+            transition: 0.4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #ff4757;
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px #ff4757;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
         .logs-section {
             background: #2d2d2d;
             border: 1px solid #444;
@@ -702,6 +753,26 @@
                     </div>
                 </div>
 
+                <!-- Auto-Delete Configuration -->
+                <div class="config-section">
+                    <div class="config-title collapsible" onclick="toggleCollapse('autodelete-config')">🗑️ Auto-Delete Accounts</div>
+                    <div id="autodelete-config" class="collapsible-content">
+                        <div class="config-row">
+                            <span class="config-label">Enable Auto-Delete:</span>
+                            <label class="switch">
+                                <input id="auto-delete-enabled" type="checkbox">
+                                <span class="slider"></span>
+                            </label>
+                            <span class="help-icon" title="⚠️ WARNING: This will permanently delete accounts after successful login!">⚠️</span>
+                        </div>
+                        <div class="config-row">
+                            <small style="color: #ff6b6b; font-size: 11px;">
+                                🚨 <strong>DANGER:</strong> Accounts will be permanently deleted from wplace.live after login!
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="controls">
                     <button id="start-autologin" class="btn btn-start">🚀 Start Autologin</button>
                     <button id="stop-autologin" class="btn btn-stop">⏹️ Stop Autologin</button>
@@ -806,6 +877,7 @@
             torSocksPort: document.getElementById('tor-socks-port'),
             torCtrlHost: document.getElementById('tor-ctrl-host'),
             torCtrlPort: document.getElementById('tor-ctrl-port'),
+            autoDeleteEnabled: document.getElementById('auto-delete-enabled'),
             postUrl: document.getElementById('post-url'),
             
             // Contenedores de logs
@@ -1067,6 +1139,11 @@
                     params.append('sequential', elements.sequentialMode.checked);
                     if (!elements.sequentialMode.checked) {
                         params.append('workers', elements.workersCount.value);
+                    }
+                    // Add auto-delete parameter
+                    if (elements.autoDeleteEnabled && elements.autoDeleteEnabled.checked) {
+                        params.append('auto_delete', 'true');
+                        addLogEntry('🚨 AUTO-DELETE ENABLED: Accounts will be deleted after login!', 'manager');
                     }
                 }
                 

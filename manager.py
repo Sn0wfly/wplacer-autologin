@@ -79,7 +79,7 @@ async def dashboard(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/start/{process_name}")
-async def start_process(process_name: str, workers: Optional[int] = None, sequential: Optional[bool] = None):
+async def start_process(process_name: str, workers: Optional[int] = None, sequential: Optional[bool] = None, auto_delete: Optional[bool] = None):
     """Inicia un proceso específico"""
     if process_name not in processes:
         raise HTTPException(status_code=400, detail=f"Proceso desconocido: {process_name}")
@@ -99,6 +99,14 @@ async def start_process(process_name: str, workers: Optional[int] = None, sequen
             else:
                 workers_count = workers if workers and workers > 0 else 10
                 command.extend(["--workers", str(workers_count)])
+            
+            # Set environment variable for auto-delete
+            if auto_delete:
+                import os
+                os.environ["AUTO_DELETE_ENABLED"] = "true"
+            else:
+                import os
+                os.environ.pop("AUTO_DELETE_ENABLED", None)
         elif process_name == "tor":
             command = ["tor.exe"]  # Simplificado
         else:

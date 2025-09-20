@@ -17,6 +17,15 @@ POST_URL = "http://127.0.0.1:80/user"
 CTRL_HOST, CTRL_PORT = "127.0.0.1", 9051
 SOCKS_HOST, SOCKS_PORT = "127.0.0.1", 9050
 
+# ===================== AUTO-DELETE CONFIGURATION =====================
+# Set to True to enable automatic account deletion after successful login
+AUTO_DELETE_ENABLED = False
+
+# You can also control this via environment variable:
+# export AUTO_DELETE_ENABLED=true
+if os.environ.get("AUTO_DELETE_ENABLED", "").lower() in ["true", "1", "yes", "on"]:
+    AUTO_DELETE_ENABLED = True
+
 # Thread synchronization
 state_lock = threading.Lock()
 proxy_lock = threading.Lock()
@@ -208,6 +217,216 @@ async def login_once(email, password):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         return await loop.run_in_executor(executor, login_once_sync, email, password)
 
+# ===================== AUTO-DELETE ACCOUNT =====================
+def auto_delete_account_sync(j_cookie_value):
+    """
+    Auto-delete account on wplace.live using the j cookie
+    Returns True if successful, False otherwise
+    """
+    try:
+        # Check if TOR is available
+        try:
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex((SOCKS_HOST, SOCKS_PORT))
+            sock.close()
+            use_tor = result == 0
+        except:
+            use_tor = False
+        
+        # Setup browser with same configuration as login
+        custom_fonts = ["Arial", "Helvetica", "Times New Roman"]
+        
+        if use_tor:
+            tor_proxy = {"server": f"socks5://{SOCKS_HOST}:{SOCKS_PORT}"}
+            print(f"[AUTO-DELETE] Using TOR proxy: {SOCKS_HOST}:{SOCKS_PORT}")
+            with Camoufox(headless=True, humanize=True, block_images=False, disable_coop=False, screen=Screen(max_width=1920, max_height=1080), proxy=tor_proxy, fonts=custom_fonts, os=["windows"], geoip=False, i_know_what_im_doing=True) as browser:
+                return _perform_account_deletion(browser, j_cookie_value)
+        else:
+            print(f"[AUTO-DELETE] TOR not available, using direct connection")
+            with Camoufox(headless=True, humanize=True, block_images=False, disable_coop=False, screen=Screen(max_width=1920, max_height=1080), fonts=custom_fonts, os=["windows"], geoip=False, i_know_what_im_doing=True) as browser:
+                return _perform_account_deletion(browser, j_cookie_value)
+                
+    except Exception as e:
+        print(f"[AUTO-DELETE] Error: {type(e).__name__}: {e}")
+        return False
+
+def _perform_account_deletion(browser, j_cookie_value):
+    """
+    Perform the actual account deletion process
+    """
+    try:
+        page = browser.new_page()
+        page.set_default_timeout(30000)
+        
+        # Step 1: Set the j cookie for wplace.live
+        page.context.add_cookies([{
+            "name": "j",
+            "value": j_cookie_value,
+            "domain": ".wplace.live",
+            "path": "/",
+            "httpOnly": False,
+            "secure": True,
+            "sameSite": "Lax"
+        }])
+        
+        # Step 2: Navigate to wplace.live
+        print("[AUTO-DELETE] Navigating to wplace.live...")
+        page.goto("https://wplace.live", wait_until="domcontentloaded")
+        time.sleep(2)
+        
+        # Step 3: Look for account/profile button (common selectors)
+        account_selectors = [
+            "button[class*='account']",
+            "button[class*='profile']",
+            "button[class*='user']",
+            "[data-testid*='account']",
+            "[data-testid*='profile']",
+            "[data-testid*='user']",
+            "img[alt*='profile']",
+            "img[alt*='avatar']",
+            ".avatar",
+            ".profile-button",
+            ".account-button",
+            ".user-menu"
+        ]
+        
+        account_button = None
+        for selector in account_selectors:
+            try:
+                account_button = page.locator(selector).first
+                if account_button.is_visible(timeout=1000):
+                    print(f"[AUTO-DELETE] Found account button with selector: {selector}")
+                    break
+            except:
+                continue
+        
+        if not account_button or not account_button.is_visible():
+            print("[AUTO-DELETE] Account button not found, trying alternative approach...")
+            # Try clicking on any clickable element that might open user menu
+            clickable_elements = page.locator("button, a, [role='button']").all()
+            for element in clickable_elements[:10]:  # Check first 10 elements
+                try:
+                    if element.is_visible():
+                        text = element.inner_text().lower()
+                        if any(word in text for word in ['account', 'profile', 'user', 'menu']):
+                            account_button = element
+                            print(f"[AUTO-DELETE] Found potential account button with text: {text}")
+                            break
+                except:
+                    continue
+        
+        if not account_button:
+            raise RuntimeError("Could not find account/profile button")
+        
+        # Step 4: Click account button
+        print("[AUTO-DELETE] Clicking account button...")
+        account_button.click()
+        time.sleep(2)
+        
+        # Step 5: Look for settings/delete account options
+        settings_selectors = [
+            "button[class*='settings']",
+            "button[class*='delete']",
+            "a[href*='settings']",
+            "a[href*='account']",
+            "[data-testid*='settings']",
+            "[data-testid*='delete']",
+            "text=Settings",
+            "text=Account Settings",
+            "text=Delete Account",
+            "text=Remove Account",
+            ".settings",
+            ".delete-account"
+        ]
+        
+        settings_button = None
+        for selector in settings_selectors:
+            try:
+                settings_button = page.locator(selector).first
+                if settings_button.is_visible(timeout=1000):
+                    print(f"[AUTO-DELETE] Found settings/delete button with selector: {selector}")
+                    break
+            except:
+                continue
+        
+        if not settings_button:
+            # Look for any button/link containing delete-related text
+            all_elements = page.locator("button, a, [role='button']").all()
+            for element in all_elements:
+                try:
+                    text = element.inner_text().lower()
+                    if any(word in text for word in ['delete', 'remove', 'settings', 'account']):
+                        settings_button = element
+                        print(f"[AUTO-DELETE] Found potential delete button with text: {text}")
+                        break
+                except:
+                    continue
+        
+        if not settings_button:
+            raise RuntimeError("Could not find settings/delete account option")
+        
+        # Step 6: Click settings/delete button
+        print("[AUTO-DELETE] Clicking settings/delete button...")
+        settings_button.click()
+        time.sleep(2)
+        
+        # Step 7: Look for final delete confirmation
+        delete_selectors = [
+            "button[class*='delete']",
+            "button[class*='confirm']",
+            "[data-testid*='delete']",
+            "[data-testid*='confirm']",
+            "text=Delete",
+            "text=Confirm",
+            "text=Yes",
+            "text=Remove",
+            ".delete-confirm",
+            ".confirm-delete"
+        ]
+        
+        delete_button = None
+        for selector in delete_selectors:
+            try:
+                delete_button = page.locator(selector).first
+                if delete_button.is_visible(timeout=1000):
+                    print(f"[AUTO-DELETE] Found delete confirmation button with selector: {selector}")
+                    break
+            except:
+                continue
+        
+        if not delete_button:
+            print("[AUTO-DELETE] Delete confirmation button not found, account deletion may require manual intervention")
+            return False
+        
+        # Step 8: Final confirmation
+        print("[AUTO-DELETE] Performing final delete confirmation...")
+        delete_button.click()
+        time.sleep(3)
+        
+        # Step 9: Verify deletion (check if redirected or account no longer exists)
+        current_url = page.url
+        print(f"[AUTO-DELETE] Current URL after deletion: {current_url}")
+        
+        # If redirected to login page or homepage, deletion likely successful
+        if "login" in current_url.lower() or current_url == "https://wplace.live/" or "auth" in current_url.lower():
+            print("[AUTO-DELETE] Account deletion appears successful (redirected to login/home)")
+            return True
+        
+        print("[AUTO-DELETE] Account deletion completed")
+        return True
+        
+    except Exception as e:
+        print(f"[AUTO-DELETE] Error during deletion process: {type(e).__name__}: {e}")
+        return False
+
+async def auto_delete_account(j_cookie_value):
+    """Async wrapper for auto_delete_account_sync to run in thread pool"""
+    loop = asyncio.get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        return await loop.run_in_executor(executor, auto_delete_account_sync, j_cookie_value)
+
 # ===================== EMAIL & STATE HANDLING =====================
 def parse_emails_file(path=EMAILS_FILE):
     p = pathlib.Path(path)
@@ -275,6 +494,20 @@ async def process_account(state, idx, thread_id=None):
         if not c:
             raise RuntimeError("cookie_not_found")
         
+        # Auto-delete account if enabled
+        if AUTO_DELETE_ENABLED:
+            print(f"{thread_prefix} Auto-delete enabled, attempting to delete account...")
+            time.sleep(0.5)
+            try:
+                delete_success = await auto_delete_account(c.get("value", ""))
+                if delete_success:
+                    print(f"{thread_prefix} [AUTO-DELETE] Account {acc['email']} deleted successfully!")
+                else:
+                    print(f"{thread_prefix} [AUTO-DELETE] Failed to delete account {acc['email']}")
+            except Exception as delete_error:
+                print(f"{thread_prefix} [AUTO-DELETE] Error deleting {acc['email']}: {delete_error}")
+            time.sleep(0.5)
+        
         payload = {"cookies": {"j": c.get("value", "")}, "expirationDate": 999999999}
         print(f"{thread_prefix} Sending result to server...")
         time.sleep(1.0)  # Simular tiempo de envío
@@ -287,8 +520,11 @@ async def process_account(state, idx, thread_id=None):
             acc["status"] = "ok"
             acc["last_error"] = ""
             acc["result"] = {"domain": c.get("domain", ""), "value": c.get("value", "")}
+            # Add auto-delete status to result
+            if AUTO_DELETE_ENABLED:
+                acc["result"]["auto_deleted"] = delete_success if 'delete_success' in locals() else False
         
-        print(f"{thread_prefix} [SUCCESS] {acc['email']} - Token obtained")
+        print(f"{thread_prefix} [SUCCESS] {acc['email']} - Token obtained{' & Account deleted' if AUTO_DELETE_ENABLED and locals().get('delete_success', False) else ''}")
         
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
