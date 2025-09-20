@@ -376,39 +376,45 @@ def _perform_account_deletion(browser, j_cookie_value):
             page.screenshot(path="debug_02_after_account_click.png")
             print("[AUTO-DELETE] DEBUG: Screenshot saved - debug_02_after_account_click.png")
         
-        # Step 5: Look for settings/delete account options (enhanced for modal detection)
+        # Step 5: Look for settings/delete account options (EXACT SELECTORS FROM INSPECTION)
         settings_selectors = [
-            # Look for delete-specific text and buttons
+            # EXACT MATCH - Based on your inspection!
+            "button.btn.btn-error.btn-soft.btn-sm.w-max",
+            "button.btn-error.btn-soft:has-text('Delete Account')",
+            "button.btn-error:has-text('Delete Account')",
+            
+            # Alternative exact matches
+            ".modal-box button.btn-error",
+            ".modal-box button:has-text('Delete Account')",
+            "form button.btn-error",
+            
+            # Text-based (most reliable)
             "text=Delete Account",
+            "button:has-text('Delete Account')",
+            
+            # Class-based fallbacks
+            "button[class*='btn-error']",
+            "button[class*='btn-soft']",
+            "button.btn-error",
+            
+            # Generic fallbacks
             "text=Remove Account", 
             "text=Delete",
             "text=Remove",
-            
-            # Look for buttons with delete-related classes
             "button[class*='delete']",
             "button[class*='remove']",
             "button[class*='danger']",
             "button[class*='red']",
             
-            # Look for settings options
-            "button[class*='settings']",
-            "text=Settings",
-            "text=Account Settings",
-            "a[href*='settings']",
-            "a[href*='account']",
-            "[data-testid*='settings']",
-            "[data-testid*='delete']",
-            ".settings",
-            ".delete-account",
-            
-            # Look in modal/popup content
+            # Modal-specific
+            ".modal-box button",
             "[role='dialog'] button",
             "[role='modal'] button", 
             ".modal button",
             ".popup button",
             ".dropdown button",
             
-            # Look for any button in visible overlays
+            # Overlay buttons
             "[style*='z-index'] button",
             ".overlay button",
             ".menu button"
@@ -450,18 +456,44 @@ def _perform_account_deletion(browser, j_cookie_value):
             page.screenshot(path="debug_03_after_settings_click.png")
             print("[AUTO-DELETE] DEBUG: Screenshot saved - debug_03_after_settings_click.png")
         
-        # Step 7: Look for final delete confirmation
+        # Step 7: Look for final delete confirmation (ENHANCED FOR WPLACE.LIVE)
         delete_selectors = [
-            "button[class*='delete']",
-            "button[class*='confirm']",
-            "[data-testid*='delete']",
-            "[data-testid*='confirm']",
+            # Likely confirmation buttons (common patterns)
+            "button.btn-error:has-text('Delete')",
+            "button.btn-error:has-text('Confirm')",
+            "button.btn-error:has-text('Yes')",
+            "button.btn-primary:has-text('Delete')",
+            "button.btn-primary:has-text('Confirm')",
+            
+            # Text-based (most reliable)
             "text=Delete",
             "text=Confirm",
+            "text=Yes, delete",
             "text=Yes",
             "text=Remove",
+            "text=Confirm Delete",
+            "text=Delete Account",
+            
+            # Class-based
+            "button[class*='delete']",
+            "button[class*='confirm']",
+            "button[class*='btn-error']",
+            "button[class*='btn-primary']",
+            "button[class*='danger']",
+            "button[class*='red']",
+            
+            # Modal confirmation patterns
+            ".modal-box button.btn-error",
+            ".modal-box button.btn-primary",
+            "[role='dialog'] button.btn-error",
+            "[role='dialog'] button.btn-primary",
+            
+            # Generic patterns
+            "[data-testid*='delete']",
+            "[data-testid*='confirm']",
             ".delete-confirm",
-            ".confirm-delete"
+            ".confirm-delete",
+            ".confirmation-button"
         ]
         
         delete_button = None
