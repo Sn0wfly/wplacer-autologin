@@ -21,10 +21,17 @@ SOCKS_HOST, SOCKS_PORT = "127.0.0.1", 9050
 # Set to True to enable automatic account deletion after successful login
 AUTO_DELETE_ENABLED = False
 
+# Set to True to enable debug mode with screenshots and detailed logging
+AUTO_DELETE_DEBUG = True
+
 # You can also control this via environment variable:
 # export AUTO_DELETE_ENABLED=true
 if os.environ.get("AUTO_DELETE_ENABLED", "").lower() in ["true", "1", "yes", "on"]:
     AUTO_DELETE_ENABLED = True
+
+# Debug mode via environment variable:
+if os.environ.get("AUTO_DELETE_DEBUG", "").lower() in ["true", "1", "yes", "on"]:
+    AUTO_DELETE_DEBUG = True
 
 # Thread synchronization
 state_lock = threading.Lock()
@@ -191,24 +198,24 @@ def login_once_sync(email, password):
     else:
         print(f"[INFO] TOR not available, using direct connection")
         with Camoufox(headless=True, humanize=True, block_images=False, disable_coop=False, screen=Screen(max_width=1920, max_height=1080), fonts=custom_fonts, os=["windows"], geoip=False, i_know_what_im_doing=True) as browser:
-            page = browser.new_page()
-            page.set_default_timeout(60000)
-            page.goto(google_login_url, wait_until="domcontentloaded")
+        page = browser.new_page()
+        page.set_default_timeout(60000)
+        page.goto(google_login_url, wait_until="domcontentloaded")
 
-            # Step 4: Handle Google login frame
+        # Step 4: Handle Google login frame
             fr = find_login_frame_sync(page, 'input[type="email"]', timeout_s=30)
-            fr.fill('input[type="email"]', email)
-            fr.locator('#identifierNext').click()
-            t0 = time.time()
-            while time.time() - t0 < 3:
+        fr.fill('input[type="email"]', email)
+        fr.locator('#identifierNext').click()
+        t0 = time.time()
+        while time.time() - t0 < 3:
                 fr = find_login_frame_sync(page, 'input[type="password"]', timeout_s=30)
-            fr.fill('input[type="password"]', password)
-            fr.locator('#passwordNext').click()
+        fr.fill('input[type="password"]', password)
+        fr.locator('#passwordNext').click()
 
-            # Step 5: Click consent if needed
+        # Step 5: Click consent if needed
             click_consent_xpath_sync(page, timeout_s=20)
 
-            # Step 6: Return "j" cookie
+        # Step 6: Return "j" cookie
             return poll_cookie_any_context_sync(browser, name="j", timeout_s=180)
 
 async def login_once(email, password):
@@ -274,22 +281,45 @@ def _perform_account_deletion(browser, j_cookie_value):
         # Step 2: Navigate to wplace.live
         print("[AUTO-DELETE] Navigating to wplace.live...")
         page.goto("https://wplace.live", wait_until="domcontentloaded")
-        time.sleep(2)
+        time.sleep(3)
         
-        # Step 3: Look for account/profile button (common selectors)
+        # Debug: Take screenshot of initial page
+        if AUTO_DELETE_DEBUG:
+            page.screenshot(path="debug_01_initial_page.png")
+            print("[AUTO-DELETE] DEBUG: Screenshot saved - debug_01_initial_page.png")
+        
+        # Step 3: Look for account/profile button (improved selectors based on findings)
         account_selectors = [
+            # Based on your inspection - SVG edit icon with size-4 class
+            'svg.size-4',
+            'button:has(svg.size-4)',
+            '[class*="size-4"]',
+            
+            # SVG with edit/pencil path (the path you found)
+            'svg:has(path[d*="200-200h57l391-391"])',
+            'button:has(svg:has(path[d*="200-200h57l391-391"]))',
+            
+            # Generic edit/profile buttons
             "button[class*='account']",
             "button[class*='profile']",
             "button[class*='user']",
+            "button[class*='edit']",
             "[data-testid*='account']",
             "[data-testid*='profile']",
             "[data-testid*='user']",
+            "[data-testid*='edit']",
             "img[alt*='profile']",
             "img[alt*='avatar']",
             ".avatar",
             ".profile-button",
             ".account-button",
-            ".user-menu"
+            ".user-menu",
+            
+            # Look for any button containing SVG
+            "button:has(svg)",
+            "div:has(svg):has-text('edit')",
+            "div:has(svg):has-text('profile')",
+            "div:has(svg):has-text('account')"
         ]
         
         account_button = None
@@ -299,11 +329,27 @@ def _perform_account_deletion(browser, j_cookie_value):
                 if account_button.is_visible(timeout=1000):
                     print(f"[AUTO-DELETE] Found account button with selector: {selector}")
                     break
-            except:
+            except Exception as e:
+                if AUTO_DELETE_DEBUG:
+                    print(f"[AUTO-DELETE] DEBUG: Selector '{selector}' failed: {e}")
                 continue
         
         if not account_button or not account_button.is_visible():
             print("[AUTO-DELETE] Account button not found, trying alternative approach...")
+            
+            # Debug: List all visible buttons for analysis
+            if AUTO_DELETE_DEBUG:
+                print("[AUTO-DELETE] DEBUG: Listing all visible buttons...")
+                all_buttons = page.locator("button, a, [role='button'], svg").all()
+                for i, btn in enumerate(all_buttons[:20]):  # Show first 20
+                    try:
+                        if btn.is_visible():
+                            text = btn.inner_text()
+                            classes = btn.get_attribute("class") or ""
+                            print(f"[AUTO-DELETE] DEBUG: Button {i}: text='{text}' class='{classes}'")
+                    except:
+                        pass
+            
             # Try clicking on any clickable element that might open user menu
             clickable_elements = page.locator("button, a, [role='button']").all()
             for element in clickable_elements[:10]:  # Check first 10 elements
@@ -323,22 +369,49 @@ def _perform_account_deletion(browser, j_cookie_value):
         # Step 4: Click account button
         print("[AUTO-DELETE] Clicking account button...")
         account_button.click()
-        time.sleep(2)
+        time.sleep(3)
         
-        # Step 5: Look for settings/delete account options
+        # Debug: Take screenshot after clicking account button
+        if AUTO_DELETE_DEBUG:
+            page.screenshot(path="debug_02_after_account_click.png")
+            print("[AUTO-DELETE] DEBUG: Screenshot saved - debug_02_after_account_click.png")
+        
+        # Step 5: Look for settings/delete account options (enhanced for modal detection)
         settings_selectors = [
-            "button[class*='settings']",
+            # Look for delete-specific text and buttons
+            "text=Delete Account",
+            "text=Remove Account", 
+            "text=Delete",
+            "text=Remove",
+            
+            # Look for buttons with delete-related classes
             "button[class*='delete']",
+            "button[class*='remove']",
+            "button[class*='danger']",
+            "button[class*='red']",
+            
+            # Look for settings options
+            "button[class*='settings']",
+            "text=Settings",
+            "text=Account Settings",
             "a[href*='settings']",
             "a[href*='account']",
             "[data-testid*='settings']",
             "[data-testid*='delete']",
-            "text=Settings",
-            "text=Account Settings",
-            "text=Delete Account",
-            "text=Remove Account",
             ".settings",
-            ".delete-account"
+            ".delete-account",
+            
+            # Look in modal/popup content
+            "[role='dialog'] button",
+            "[role='modal'] button", 
+            ".modal button",
+            ".popup button",
+            ".dropdown button",
+            
+            # Look for any button in visible overlays
+            "[style*='z-index'] button",
+            ".overlay button",
+            ".menu button"
         ]
         
         settings_button = None
@@ -370,7 +443,12 @@ def _perform_account_deletion(browser, j_cookie_value):
         # Step 6: Click settings/delete button
         print("[AUTO-DELETE] Clicking settings/delete button...")
         settings_button.click()
-        time.sleep(2)
+        time.sleep(3)
+        
+        # Debug: Take screenshot after clicking settings/delete
+        if AUTO_DELETE_DEBUG:
+            page.screenshot(path="debug_03_after_settings_click.png")
+            print("[AUTO-DELETE] DEBUG: Screenshot saved - debug_03_after_settings_click.png")
         
         # Step 7: Look for final delete confirmation
         delete_selectors = [
@@ -403,7 +481,12 @@ def _perform_account_deletion(browser, j_cookie_value):
         # Step 8: Final confirmation
         print("[AUTO-DELETE] Performing final delete confirmation...")
         delete_button.click()
-        time.sleep(3)
+        time.sleep(5)
+        
+        # Debug: Take screenshot after final confirmation
+        if AUTO_DELETE_DEBUG:
+            page.screenshot(path="debug_04_after_final_delete.png")
+            print("[AUTO-DELETE] DEBUG: Screenshot saved - debug_04_after_final_delete.png")
         
         # Step 9: Verify deletion (check if redirected or account no longer exists)
         current_url = page.url
@@ -426,6 +509,24 @@ async def auto_delete_account(j_cookie_value):
     loop = asyncio.get_event_loop()
     with concurrent.futures.ThreadPoolExecutor() as executor:
         return await loop.run_in_executor(executor, auto_delete_account_sync, j_cookie_value)
+
+def test_auto_delete_with_cookie(j_cookie_value):
+    """
+    Test function to debug auto-delete with a specific cookie
+    Usage: test_auto_delete_with_cookie("your_j_cookie_value_here")
+    """
+    print("[TEST] Starting auto-delete test with debug mode enabled...")
+    global AUTO_DELETE_DEBUG
+    AUTO_DELETE_DEBUG = True
+    
+    try:
+        result = auto_delete_account_sync(j_cookie_value)
+        print(f"[TEST] Auto-delete test completed. Result: {result}")
+        print("[TEST] Check the debug screenshots: debug_01_initial_page.png, debug_02_after_account_click.png, etc.")
+        return result
+    except Exception as e:
+        print(f"[TEST] Auto-delete test failed: {type(e).__name__}: {e}")
+        return False
 
 # ===================== EMAIL & STATE HANDLING =====================
 def parse_emails_file(path=EMAILS_FILE):
@@ -546,7 +647,7 @@ async def process_account(state, idx, thread_id=None):
             result = sock.connect_ex((CTRL_HOST, CTRL_PORT))
             sock.close()
             if result == 0:
-                tor_newnym_cookie()
+            tor_newnym_cookie()
         except Exception as e:
             print(f"{thread_prefix} [WARN] TOR newnym failed: {e}")
         time.sleep(2)  # Reduced sleep for faster processing
@@ -581,18 +682,18 @@ async def main_concurrent(max_workers=5):
     
     # Process accounts concurrently using asyncio
     tasks = []
-    for thread_id, idx in enumerate(ordered):
+        for thread_id, idx in enumerate(ordered):
         task = asyncio.create_task(process_account(state, idx, thread_id + 1))
         tasks.append((task, idx))
-    
-    # Wait for completion and handle results
-    completed = 0
+        
+        # Wait for completion and handle results
+        completed = 0
     for task, idx in tasks:
         await task
-        completed += 1
+            completed += 1
         progress_percent = (completed / len(ordered)) * 100
         print(f"[INFO] Progress: {completed}/{len(ordered)} ({progress_percent:.1f}%) - Account {idx} completed")
-        print(f"[INFO] Progress: {completed}/{len(ordered)} completed")
+                print(f"[INFO] Progress: {completed}/{len(ordered)} completed")
         # Add small delay to allow WebSocket to send logs progressively
         await asyncio.sleep(0.1)
 
